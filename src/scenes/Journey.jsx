@@ -325,7 +325,7 @@ export default function Journey() {
         <nav>
           {riding(view.phase) ? (
             <button type="button" className="journey__link" onClick={skip}>
-              skip to the end
+              skip<span className="journey__long"> to the end</span>
             </button>
           ) : null}
           <a

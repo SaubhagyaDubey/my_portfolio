@@ -92,6 +92,7 @@
 
 .journey__link {
   padding: 4px 0;
+  white-space: nowrap;
   background: none;
   border: 0;
   border-bottom: 1px dotted transparent;
@@ -296,24 +297,23 @@
 }
 
 .journey-card__fact {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 10px;
   max-width: 100%;
+  text-wrap: balance;
   color: var(--dim);
   text-shadow: 0 0 12px var(--ink), 0 1px 2px var(--ink);
   animation: card-up 0.6s 0.5s var(--ease-out) both;
 }
 
-/* the city's gem, as on the flags */
+/* the city's gem, as on the flags; inline, so it stays with the first word when the line wraps */
 .journey-card__fact::before {
   content: '';
-  flex: none;
+  display: inline-block;
   width: 7px;
   height: 7px;
+  margin-right: 10px;
   border: 1px solid var(--accent);
   rotate: 45deg;
-  translate: 0 -1px;
+  vertical-align: 0.05em;
 }
 
 /* counts down to leaving */
@@ -736,7 +736,13 @@
 
 /* ---- phones ---- */
 @media (max-width: 720px) {
-  .journey__top b {
+  .journey__top {
+    padding-inline: 16px;
+  }
+
+  .journey__top b,
+  .journey__long,
+  .journey-keys {
     display: none;
   }
 
@@ -785,7 +791,7 @@
   }
 
   .journey-fork {
-    --disc: clamp(104px, 30vw, 150px);
+    --disc: clamp(96px, 26vw, 140px);
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto 1fr 1fr auto auto;
     grid-template-areas: 'head' 'under' 'top' 'play' 'foot';
@@ -798,7 +804,8 @@
   }
 
   .journey-choice {
-    --t: clamp(26px, 9vw, 40px);
+    /* "the work" (~6.8em at this stretch) has to fit beside its disc */
+    --t: clamp(22px, 7.2vw, 36px);
     grid-template-columns: auto minmax(0, 1fr);
     grid-template-rows: auto auto auto;
     justify-items: start;
