@@ -1,4 +1,5 @@
 import { assertSameOrigin, json, readJson, route } from './_lib/http.js'
+import { rateLimit } from './_lib/limit.js'
 import { newPilotId, pilotCookie, pilotFrom } from './_lib/pilot.js'
 import { issueRun } from './_lib/sign.js'
 
@@ -7,6 +8,7 @@ import { issueRun } from './_lib/sign.js'
 
 export const POST = route(async (request) => {
   assertSameOrigin(request)
+  rateLimit(request, 'run', { max: 30 })
   const body = await readJson(request)
   const existing = pilotFrom(request)
   const id = existing ?? newPilotId()

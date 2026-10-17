@@ -1,14 +1,16 @@
 import assert from 'node:assert/strict'
 import { beforeEach, describe, test } from 'node:test'
-import { GET as board } from '../api/leaderboard.js'
+import { GET as board, forgetBoard } from '../api/leaderboard.js'
 import { GET as getPilot, POST as postPilot } from '../api/pilot.js'
 import { POST as postRun } from '../api/run.js'
 import { POST as postScore } from '../api/score.js'
+import { resetLimits } from '../api/_lib/limit.js'
 import { cleanCallsign } from '../api/_lib/pilot.js'
 import { issueRun, readRun, sign, verify } from '../api/_lib/sign.js'
 import { useStore } from '../api/_lib/store.js'
-import { checkRun } from '../api/_lib/validate.js'
-import { maxScore, multiplier, SCORES } from '../src/game/rules.js'
+import { checkRun, maxKills, maxScore, minSeconds } from '../api/_lib/validate.js'
+import { BOSS_EVERY, multiplier, SCORES } from '../src/game/rules.js'
+import { buildWave } from '../src/game/waveplan.js'
 
 const ORIGIN = 'http://localhost:5173'
 
@@ -31,6 +33,8 @@ async function newRun(cookie) {
 beforeEach(() => {
   delete globalThis.__deepFieldStore
   useStore(null)
+  resetLimits()
+  forgetBoard()
 })
 
 describe('signing', () => {
@@ -63,18 +67,43 @@ describe('callsigns', () => {
 
 describe('run checks', () => {
   const run = { startedAt: 0 }
-  test('accepts what the game can produce', () => {
-    assert.equal(checkRun({ score: 100 * multiplier(0), wave: 1, kills: 1 }, run, 5000).ok, true)
-    assert.equal(checkRun({ score: SCORES.boss * 8 + 3200, wave: 5, kills: 1 }, run, 60_000).ok, true)
+  const at = (seconds) => seconds * 1000
+
+  test('wave 1 holds exactly what the wave plan spawns', () => {
+    const events = buildWave(1)
+    assert.equal(maxKills(1, 30), events.length)
+    // a perfect unbroken streak through every wave-1 creature, best ones last
+    const values = events.map((e) => SCORES[e.kind]).sort((x, y) => x - y)
+    const perfect = values.reduce((sum, v, i) => sum + v * multiplier(i + 1), 0)
+    assert.equal(maxScore(events.length, 1, 30), perfect)
   })
-  test('rejects impossible runs', () => {
-    assert.equal(checkRun({ score: 120, wave: 1, kills: 1 }, run, 5000).reason, 'impossible-score') // not a multiple of 50
-    assert.equal(checkRun({ score: maxScore(1, 1) + 50, wave: 1, kills: 1 }, run, 5000).reason, 'impossible-score')
-    assert.equal(checkRun({ score: 100, wave: 10, kills: 1 }, run, 5000).reason, 'too-fast')
-    assert.equal(checkRun({ score: 100, wave: 1, kills: 999 }, run, 5000).reason, 'too-many-kills')
-    assert.equal(checkRun({ score: 100, wave: 1, kills: 1 }, run, 5 * 60 * 60 * 1000).reason, 'run-expired')
-    assert.equal(checkRun({ score: '100', wave: 1, kills: 1 }, run, 5000).reason, 'bad-numbers')
-    assert.equal(checkRun({ score: -50, wave: 1, kills: 1 }, run, 5000).reason, 'out-of-range')
+
+  test('accepts runs at the very edge of what the game can do', () => {
+    for (const wave of [1, 2, 3, 4, 5, 6, 9, 10, 11, 20, 37]) {
+      const seconds = minSeconds(wave) + 0.001
+      const kills = maxKills(wave, seconds)
+      const score = maxScore(kills, wave, seconds)
+      assert.equal(checkRun({ score, wave, kills }, run, at(seconds)).ok, true, `wave ${wave}`)
+      assert.equal(checkRun({ score: SCORES.jelly, wave, kills: 1 }, run, at(seconds + 600)).ok, true, `slow wave ${wave}`)
+    }
+  })
+
+  test('a boss wave allows the boss and its darts', () => {
+    const seconds = minSeconds(BOSS_EVERY) + 60
+    assert.equal(checkRun({ score: SCORES.boss * 8, wave: BOSS_EVERY, kills: 0 }, run, at(seconds)).ok, true)
+    assert.ok(maxKills(BOSS_EVERY, seconds + 75) > maxKills(BOSS_EVERY, seconds)) // called darts add up over time
+  })
+
+  test('rejects runs the game cannot produce', () => {
+    assert.equal(checkRun({ score: 120, wave: 1, kills: 1 }, run, at(5)).reason, 'impossible-score') // not a multiple of 50
+    assert.equal(checkRun({ score: 512000, wave: 1, kills: 160 }, run, at(1)).reason, 'too-many-kills')
+    assert.equal(checkRun({ score: maxScore(30, 1, 30) + 50, wave: 1, kills: 30 }, run, at(30)).reason, 'impossible-score')
+    assert.equal(checkRun({ score: 50000000, wave: 100, kills: 16600 }, run, at(600)).reason, 'too-fast')
+    assert.equal(checkRun({ score: 100, wave: 10, kills: 1 }, run, at(5)).reason, 'too-fast')
+    assert.equal(checkRun({ score: 100, wave: 1, kills: 999 }, run, at(5)).reason, 'too-many-kills')
+    assert.equal(checkRun({ score: 100, wave: 1, kills: 1 }, run, at(5 * 60 * 60)).reason, 'run-expired')
+    assert.equal(checkRun({ score: '100', wave: 1, kills: 1 }, run, at(5)).reason, 'bad-numbers')
+    assert.equal(checkRun({ score: -50, wave: 1, kills: 1 }, run, at(5)).reason, 'out-of-range')
   })
 })
 
@@ -141,17 +170,36 @@ describe('api', () => {
     assert.equal((await postPilot(req('/api/pilot', { method: 'POST', body: '{nope' }))).status, 400)
   })
 
-  test('renaming creates the pilot and keeps the cookie', async () => {
+  test('renaming before the first score writes nothing; the name rides along with the first score', async () => {
     const res = await postPilot(req('/api/pilot', { method: 'POST', body: { callsign: 'Brass Kite' } }))
     assert.equal(res.status, 200)
     const cookie = cookieOf(res)
     assert.ok(cookie)
-    assert.equal((await res.json()).pilot.callsign, 'brass kite')
-    const bad = await postPilot(req('/api/pilot', { method: 'POST', cookie, body: { callsign: 'x' } }))
-    assert.equal(bad.status, 400)
+    assert.deepEqual(await res.json(), { pilot: null, callsign: 'brass kite' })
+    assert.equal(globalThis.__deepFieldStore?.pilots.size ?? 0, 0)
+    assert.equal((await postPilot(req('/api/pilot', { method: 'POST', cookie, body: { callsign: 'x' } }))).status, 400)
+
+    const { run } = await newRun(cookie)
+    const scored = await (await postScore(req('/api/score', { method: 'POST', cookie, body: { run, score: 100, wave: 1, kills: 1, callsign: 'brass kite' } }))).json()
+    assert.equal(scored.pilot.callsign, 'brass kite')
     const renamed = await postPilot(req('/api/pilot', { method: 'POST', cookie, body: { callsign: 'brass kite two' } }))
     assert.equal(renamed.headers.get('set-cookie'), null)
     assert.equal((await renamed.json()).pilot.callsign, 'brass kite two')
+  })
+
+  test('the board refuses query strings, so the cache can not be skipped', async () => {
+    assert.equal((await board(req('/api/leaderboard?limit=25&x=1'))).status, 400)
+    assert.equal((await board(req('/api/leaderboard'))).status, 200)
+  })
+
+  test('writes are rate-limited per IP', async () => {
+    let status = 200
+    for (let i = 0; i < 31 && status === 200; i++) status = (await postRun(req('/api/run', { method: 'POST', body: {} }))).status
+    assert.equal(status, 429)
+  })
+
+  test("the site owner's name is reserved", () => {
+    assert.equal(cleanCallsign('Saubhagya'), null)
   })
 
   test('a fresh browser gets a cookie and a stable suggestion, not a pilot', async () => {

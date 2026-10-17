@@ -79,34 +79,37 @@ tests/                     API tests
 
 `/play` keeps a leaderboard through four Vercel functions in `api/` backed by Firestore (`firebase-admin`):
 
-| Route                  | What it does                                                                 |
-| ---------------------- | ---------------------------------------------------------------------------- |
-| `GET /api/pilot`       | This browser's pilot (callsign, best, rank), or a suggested callsign         |
-| `POST /api/pilot`      | Rename: `{ callsign }`, 3–16 characters                                      |
-| `POST /api/run`        | Start a run: returns a signed run token                                      |
-| `POST /api/score`      | Spend the token with `{ run, score, wave, kills }`                           |
-| `GET /api/leaderboard` | Top pilots by best run (CDN-cached for 10 s)                                 |
+| Route                  | What it does                                                                         |
+| ---------------------- | ------------------------------------------------------------------------------------ |
+| `GET /api/pilot`       | This browser's pilot (callsign, best, rank), or a suggested callsign; sets the cookie |
+| `POST /api/pilot`      | Rename: `{ callsign }`, 3–16 characters (kept on the device until the first score)    |
+| `POST /api/run`        | Start a run: returns a signed run token                                              |
+| `POST /api/score`      | Spend the token with `{ run, score, wave, kills }`                                   |
+| `GET /api/leaderboard` | Top 10 pilots by best run (no query string; CDN-cached for 10 s)                     |
 
-**Accounts are cookies.** A visitor's pilot is a random id in a signed, HttpOnly `df_pilot` cookie scoped to `/api`. No sign-up; clearing cookies starts a new pilot. The board shows callsigns and a public tag, never the id.
+**Accounts are cookies.** A visitor's pilot is a random id in a signed, HttpOnly `df_pilot` cookie scoped to `/api`. No sign-up; clearing cookies starts a new pilot. The board shows callsigns and a public tag, never the id. Nothing is written to Firestore until a pilot's first accepted score.
 
-**Scores are sanity-checked, not trusted.** A run token is issued at launch and can be spent once, only by the same cookie, within four hours. The numbers have to be ones the game can produce (`src/game/rules.js` is shared by the game and the API). The game runs in the browser, so this stops casual cheating, not a determined one.
+**Scores are checked against the game, not trusted.** A run token is issued at launch and can be spent once, only by the same cookie, within four hours. The API replays the game's own wave plan (`src/game/waveplan.js` and `src/game/rules.js`, shared with the game) to know how many creatures a run could have met by the wave it reports, the most those kills can score, and how soon that wave can be reached. The game runs in the browser, so a determined cheat can still post a perfect-play score; if one does, delete their doc in `pilots/` from the Firebase console.
 
-**Local dev needs nothing.** Without Firebase credentials, `npm run dev` serves the API from Vite (`scripts/api-dev.js`) with an in-memory store that resets when the server restarts.
+**Abuse limits.** Each function instance rate-limits writes per IP (`api/_lib/limit.js`), but instances count separately. For a hard limit, add a Vercel Firewall rule: Project → Firewall → New rule → path starts with `/api/`, method POST, rate limit about 30 requests per minute per IP.
+
+**Local dev needs nothing.** Without Firebase credentials, `npm run dev` (and `vite preview`) serve the API from Vite (`scripts/api-dev.js`) with an in-memory store that resets when the server restarts.
 
 ### Setting up Firebase (once)
 
-1. In the [Firebase console](https://console.firebase.google.com/) (personal account), create a project and add a **Firestore** database.
-2. Deploy the rules (deny all client access; only the API talks to Firestore) and the TTL override for spent runs:
+Use a **dedicated project on your personal Google account**. The deploy below replaces the project's Firestore rules with deny-all, so it must never point at a project anything else uses. Always pass `--project` and `--account` explicitly; don't rely on whichever account the CLI is logged into.
+
+1. In the [Firebase console](https://console.firebase.google.com/), signed in with your personal account, create a new project (for example `deep-field-board`) and add a **Firestore** database in Native mode.
+2. Add your personal account to the CLI next to any work login, then deploy the rules (deny all client access; only the API talks to Firestore) and the TTL policy for spent runs:
    ```bash
-   firebase login            # with the account that owns the project
-   firebase use --add        # pick the project
-   firebase deploy --only firestore
+   firebase login:add                     # your personal account; the work login stays untouched
+   firebase deploy --only firestore --project deep-field-board --account you@personal.example
    ```
-3. Project settings → Service accounts → **Generate new private key**. Keep the JSON out of the repo (`*service-account*.json` is git-ignored).
+3. Project settings → Service accounts → **Generate new private key**. Save it **outside the repo** (it lands in `~/Downloads`); `*-firebase-adminsdk-*.json` is git-ignored as a backstop.
 4. In Vercel → Project → Settings → Environment Variables, add (see `.env.example`):
    - `COOKIE_SECRET`: 32+ random characters (`node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"`)
-   - `FIREBASE_SERVICE_ACCOUNT`: the JSON from step 3, raw or base64 (`base64 -i key.json | tr -d '\n'`)
-5. Redeploy. To use Firestore locally too, put the same two variables in `.env.local`.
+   - `FIREBASE_SERVICE_ACCOUNT`: the key, base64-encoded: `base64 -i ~/Downloads/<project>-firebase-adminsdk-<id>.json | tr -d '\n'`
+5. Delete the downloaded key file, then redeploy. To use Firestore locally too, put the same two variables in `.env.local`.
 
 ## Deployment
 

@@ -86,6 +86,8 @@ export function apiDev() {
       server.middlewares.use(middleware((id) => ssrLoad(id)))
     },
     configurePreviewServer(server) {
+      // preview sets NODE_ENV=production; this is still a local server, so allow the dev fallbacks
+      process.env.DEEP_FIELD_LOCAL ??= '1'
       // preview has no module graph; import the files directly
       server.middlewares.use(middleware((id) => import(new URL(`..${id}`, import.meta.url).href)))
     },

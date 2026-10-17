@@ -58,8 +58,8 @@ export function callsignFor(pilotId) {
 }
 
 const CALLSIGN_RE = /^[a-z0-9](?:[a-z0-9 _-]{1,14})[a-z0-9]$/
-// a short list; this is a portfolio toy, not a moderation system
-const BLOCKED = ['fuck', 'shit', 'cunt', 'nigg', 'fag', 'rape', 'nazi', 'hitler', 'whore', 'slut', 'retard', 'kike', 'chink', 'paki']
+// a short list; this is a portfolio toy, not a moderation system. The site owner's name is reserved.
+const BLOCKED = ['fuck', 'shit', 'cunt', 'nigg', 'fag', 'rape', 'nazi', 'hitler', 'whore', 'slut', 'retard', 'kike', 'chink', 'paki', 'saubhagya']
 
 // Normalises a requested callsign, or returns null if it isn't allowed. 3–16 chars: a–z, 0–9, space, _ and -.
 export function cleanCallsign(input) {

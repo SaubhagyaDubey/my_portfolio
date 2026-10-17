@@ -1,4 +1,5 @@
 import { assertSameOrigin, HttpError, json, readJson, route } from './_lib/http.js'
+import { rateLimit } from './_lib/limit.js'
 import { callsignFor, cleanCallsign, pilotFrom } from './_lib/pilot.js'
 import { publicTag, readRun } from './_lib/sign.js'
 import { getStore } from './_lib/store.js'
@@ -11,6 +12,7 @@ import { pilotView } from './_lib/view.js'
 
 export const POST = route(async (request) => {
   assertSameOrigin(request)
+  rateLimit(request, 'score', { max: 20 })
   const body = await readJson(request)
   const run = readRun(body?.run)
   if (!run) throw new HttpError(400, 'bad-run')

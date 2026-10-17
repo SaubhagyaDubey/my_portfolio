@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { CITIES, cityVars } from '../data/palette.js'
 import { Board, Callsign, SubmitNote } from '../game/Board.jsx'
-import { abandonRun, beginRun, finishRun, loadBoard, useBoard } from '../game/board.js'
+import { abandonRun, beginRun, finishRun, loadBoard, stopRefresh, useBoard } from '../game/board.js'
 import GameScene from '../game/GameScene.jsx'
 import { BOX, HULL_MAX, game, resetGame, reticleEl, useGame } from '../game/state.js'
 import { useMediaQuery } from '../hooks/useMediaQuery.js'
@@ -26,7 +26,8 @@ export default function Play() {
   const city = CITIES[cityKey]
   const reduced = useMediaQuery('(prefers-reduced-motion: reduce)')
   const coarse = useMediaQuery('(pointer: coarse)')
-  const wide = useMediaQuery('(min-width: 1180px)')
+  const wide = useMediaQuery('(min-width: 1280px)')
+  const overAt = useRef(0)
   const phase = useGame((s) => s.phase)
   const cam = useGame((s) => s.cam)
   const hit = useGame((s) => s.hit)
@@ -55,11 +56,18 @@ export default function Play() {
   // the board loads with the page; a finished run is submitted once, when the end card appears
   useEffect(() => {
     loadBoard()
-    return () => abandonRun()
+    return () => {
+      abandonRun()
+      stopRefresh()
+    }
   }, [])
   useEffect(() => {
-    if (phase === 'over') finishRun({ score: game.score, wave: Math.max(1, game.wave), kills: game.kills })
-  }, [phase])
+    if (phase !== 'over') return
+    overAt.current = performance.now()
+    // runs started mid-game with the dev ?wave= jump skip waves, so the board would rightly refuse them
+    if (startWave === 1) finishRun({ score: game.score, wave: Math.max(1, game.wave), kills: game.kills })
+    else abandonRun()
+  }, [phase, startWave])
   const pause = useCallback(() => {
     if (useGame.getState().phase === 'playing') set({ phase: 'paused' })
   }, [set])
@@ -78,11 +86,20 @@ export default function Play() {
         return
       }
       if (e.key === ' ' || e.key === 'Enter') {
-        // let Enter activate a focused button normally
-        if (e.key === 'Enter' && e.target instanceof HTMLButtonElement) return
+        if (ph === 'playing') {
+          e.preventDefault()
+          game.input.fire = true
+          return
+        }
+        // a held fire key keeps repeating after the ship dies; give the end card a moment before a key restarts
+        if (e.repeat || (ph === 'over' && performance.now() - overAt.current < 700)) {
+          e.preventDefault()
+          return
+        }
+        // outside play, a focused button or link handles its own Space/Enter
+        if (e.target instanceof Element && e.target.closest('button, a, input, textarea, select')) return
         e.preventDefault()
-        if (ph === 'playing') game.input.fire = true
-        else if (ph === 'title' || ph === 'over') start()
+        if (ph === 'title' || ph === 'over') start()
         else if (ph === 'paused') resume()
         return
       }

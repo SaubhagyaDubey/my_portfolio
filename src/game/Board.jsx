@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { callsignOf, saveCallsign, useBoard } from './board.js'
+import { callsignOf, rankIn, saveCallsign, useBoard } from './board.js'
 
 const pad = (n) => String(n).padStart(7, '0')
 
@@ -10,6 +10,7 @@ const REASONS = {
   replay: 'already saved.',
   'not-your-run': 'cookies changed mid-run. not saved.',
   'not-configured': 'the board isn’t set up yet.',
+  'slow-down': 'too many runs from here just now. not saved.',
 }
 
 // The board: top pilots by best run, one row each, this browser's row marked. `compact` is the
@@ -29,9 +30,9 @@ export function Board({ compact = false }) {
       {status === 'ready' && !rows.length ? <p className="board__empty mono">nobody yet. first one gets the top spot.</p> : null}
       {rows.length ? (
         <ol className="board__list">
-          {rows.map((e, i) => (
+          {rows.map((e) => (
             <li key={e.tag} data-me={pilot?.tag === e.tag} data-city={e.city ?? ''}>
-              <span className="board__rank">{i + 1}</span>
+              <span className="board__rank">{rankIn(entries, e.best)}</span>
               <span className="board__name">{e.callsign}</span>
               <span className="board__wave mono">w{e.wave}</span>
               <span className="board__score">{pad(e.best)}</span>
@@ -94,7 +95,15 @@ export function Callsign() {
     )
   }
   return (
-    <form className="board__form" onSubmit={save}>
+    <form
+      className="board__form"
+      onSubmit={save}
+      onKeyDown={(e) => {
+        // keep Escape (and every other key) away from the game's window shortcuts while renaming
+        e.stopPropagation()
+        if (e.key === 'Escape') setEditing(false)
+      }}
+    >
       <label className="mono" htmlFor="callsign">
         callsign
       </label>
@@ -106,12 +115,6 @@ export function Callsign() {
         spellCheck={false}
         autoFocus
         onChange={(e) => setDraft(e.target.value.toLowerCase())}
-        onKeyDown={(e) => {
-          if (e.key === 'Escape') {
-            e.stopPropagation()
-            setEditing(false)
-          }
-        }}
       />
       <button type="submit" disabled={busy}>
         {busy ? 'saving' : 'save'}

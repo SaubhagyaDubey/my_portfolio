@@ -54,11 +54,13 @@ async function firestoreStore({ projectId, clientEmail, privateKey }) {
       return snap.exists ? snap.data() : null
     },
 
-    async setCallsign(id, { callsign, tag, now }) {
+    // renames an existing pilot; returns null when there is none yet (nothing is written)
+    async rename(id, callsign) {
       const ref = pilots.doc(id)
       return db.runTransaction(async (tx) => {
         const snap = await tx.get(ref)
-        const next = snap.exists ? { ...snap.data(), callsign } : newPilot({ callsign, tag, now })
+        if (!snap.exists) return null
+        const next = { ...snap.data(), callsign }
         tx.set(ref, next)
         return next
       })
@@ -102,9 +104,10 @@ function memoryStore() {
     async getPilot(id) {
       return mem.pilots.get(id) ?? null
     },
-    async setCallsign(id, { callsign, tag, now }) {
+    async rename(id, callsign) {
       const prev = mem.pilots.get(id)
-      const next = prev ? { ...prev, callsign } : newPilot({ callsign, tag, now })
+      if (!prev) return null
+      const next = { ...prev, callsign }
       mem.pilots.set(id, next)
       return next
     },

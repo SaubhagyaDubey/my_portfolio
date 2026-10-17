@@ -29,3 +29,5 @@ dist-ssr
 !.env.example
 .vercel
 *service-account*.json
+*-firebase-adminsdk-*.json
+key.json

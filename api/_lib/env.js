@@ -10,8 +10,11 @@
 
 const DEV_SECRET = 'deep-field-dev-only-secret-do-not-use-in-production'
 
+// Fails closed: anything that looks like production must be configured. `vite preview` also sets
+// NODE_ENV=production, so the local dev plugin opts out with DEEP_FIELD_LOCAL=1.
 export function isProduction() {
-  return process.env.VERCEL_ENV === 'production' || process.env.NODE_ENV === 'production'
+  if (process.env.VERCEL_ENV === 'production') return true
+  return process.env.NODE_ENV === 'production' && process.env.DEEP_FIELD_LOCAL !== '1'
 }
 
 export function cookieSecret() {
