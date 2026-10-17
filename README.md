@@ -100,11 +100,12 @@ tests/                     API tests
 Use a **dedicated project on your personal Google account**. The deploy below replaces the project's Firestore rules with deny-all, so it must never point at a project anything else uses. Always pass `--project` and `--account` explicitly; don't rely on whichever account the CLI is logged into.
 
 1. In the [Firebase console](https://console.firebase.google.com/), signed in with your personal account, create a new project (for example `deep-field-board`) and add a **Firestore** database in Native mode.
-2. Add your personal account to the CLI next to any work login, then deploy the rules (deny all client access; only the API talks to Firestore) and the TTL policy for spent runs:
+2. Add your personal account to the CLI next to any work login, then deploy the rules (deny all client access; only the API talks to Firestore):
    ```bash
    firebase login:add                     # your personal account; the work login stays untouched
-   firebase deploy --only firestore --project deep-field-board --account you@personal.example
+   firebase deploy --only firestore:rules --project deep-field-board --account you@personal.example
    ```
+   Spent run tokens (`runs/`) stay in Firestore. Each is a few hundred bytes, so the free plan's 1 GiB holds hundreds of thousands. On the Blaze plan you can have Firestore delete them: add a TTL policy on `runs` → `expireAt` (Firestore → TTL in the console). Every run is written with that field already. TTL needs billing enabled, so it isn't in `firestore.indexes.json`.
 3. Project settings → Service accounts → **Generate new private key**. Save it **outside the repo** (it lands in `~/Downloads`); `*-firebase-adminsdk-*.json` is git-ignored as a backstop.
 4. In Vercel → Project → Settings → Environment Variables, add (see `.env.example`):
    - `COOKIE_SECRET`: 32+ random characters (`node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"`)

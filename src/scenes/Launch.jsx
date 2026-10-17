@@ -22,6 +22,7 @@ export default function Launch() {
   const state = useRef({ hover: null, warp: null, warpT: 0, mouse: { x: 0.5, y: 0.5 }, discs: {}, reduced, stacked })
   const underRef = useRef()
   const topRef = useRef()
+  const playRef = useRef()
 
   useEffect(() => {
     state.current.hover = hover
@@ -30,13 +31,15 @@ export default function Launch() {
     if (hover === 'under') useLoader.preload(THREE.TextureLoader, EARTH_TEXTURES)
   }, [hover, reduced, stacked])
 
-  // measure where the galaxy discs sit so the WebGL galaxies render under them
+  // measure where the galaxy discs sit so the WebGL galaxies render under them; the play button is
+  // measured too so the stars have somewhere to pull towards when it's hovered
   useLayoutEffect(() => {
     const measure = () => {
       const d = {}
       for (const [k, ref] of [
         ['under', underRef],
         ['top', topRef],
+        ['play', playRef],
       ]) {
         const el = ref.current
         if (!el) continue
@@ -81,12 +84,15 @@ export default function Launch() {
     else warpTo(`/${key}`, origin)
   }
 
-  const look = hover === 'under' && !stacked ? 'look-left' : hover === 'top' && !stacked ? 'look-right' : stacked && hover === 'top' ? 'look-up' : stacked && hover === 'under' ? 'look-down' : 'front'
-  const prompt = hover === 'under' ? LAUNCH.under : hover === 'top' ? LAUNCH.top : LAUNCH.idle
+  // the game sits under everything in both layouts, so a glance at it is always down
+  const look = hover === 'play' ? 'look-down' : hover === 'under' && !stacked ? 'look-left' : hover === 'top' && !stacked ? 'look-right' : stacked && hover === 'top' ? 'look-up' : stacked && hover === 'under' ? 'look-down' : 'front'
+  const prompt = hover === 'under' ? LAUNCH.under : hover === 'top' ? LAUNCH.top : hover === 'play' ? LAUNCH.play : LAUNCH.idle
+  // the game belongs to neither city, so it keeps the brass
+  const city = hover === 'under' || hover === 'top' ? hover : null
   const tier = getTier()
 
   return (
-    <div className="launch" data-warp={warp ?? ''} data-hover={hover ?? ''} style={hover ? cityVars(hover) : undefined}>
+    <div className="launch" data-warp={warp ?? ''} data-hover={hover ?? ''} style={city ? cityVars(city) : undefined}>
       <div className="launch__sky" aria-hidden="true">
         <Canvas
           orthographic
@@ -103,16 +109,6 @@ export default function Launch() {
           deep field <b>· two cities, one person</b>
         </span>
         <span className="launch__links">
-          <a
-            href="/play"
-            className="launch__play"
-            onClick={(e) => {
-              e.preventDefault()
-              navigate('/play')
-            }}
-          >
-            play impact
-          </a>
           <a
             href="/text"
             onClick={(e) => {
@@ -142,7 +138,7 @@ export default function Launch() {
         </button>
 
         <div className="launch__mid">
-          <Helmet look={look} tint={hover ?? ''} />
+          <Helmet look={look} tint={city ?? ''} />
           <p className="launch__act mono">{LAUNCH.act}</p>
           <h1 className="launch__name">
             <span>{LAUNCH.name}</span>
@@ -168,6 +164,26 @@ export default function Launch() {
           <span className="galaxy__city mono">{LAUNCH.topCity}</span>
           <span className="galaxy__title">{LAUNCH.topTitle}</span>
         </button>
+
+        <div className="launch__third">
+          <span className="launch__or mono">{LAUNCH.playOr}</span>
+          <a
+            href="/play"
+            className="launch__play"
+            ref={playRef}
+            onPointerEnter={() => setHover('play')}
+            onPointerLeave={() => setHover(null)}
+            onFocus={() => setHover('play')}
+            onBlur={() => setHover(null)}
+            onClick={(e) => {
+              e.preventDefault()
+              go('play', e)
+            }}
+            aria-label={`${LAUNCH.playTitle}. ${LAUNCH.play}`}
+          >
+            <span>{LAUNCH.playTitle}</span>
+          </a>
+        </div>
       </div>
 
       <div className="launch__foot mono">

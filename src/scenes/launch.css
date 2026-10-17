@@ -47,10 +47,6 @@
   gap: 20px;
 }
 
-.launch__corner .launch__play {
-  color: var(--brass);
-}
-
 .launch__corner a:hover,
 .launch__corner a:focus-visible {
   color: var(--paper);
@@ -61,8 +57,11 @@
 .launch__stage {
   display: grid;
   grid-template-columns: 1fr minmax(0, 520px) 1fr;
-  grid-template-areas: 'under mid top';
+  grid-template-areas:
+    'under mid top'
+    '. play .';
   align-items: center;
+  align-content: center;
   padding-inline: clamp(12px, 3vw, 40px);
   gap: 12px;
 }
@@ -130,13 +129,16 @@
 
 .launch__prompt {
   color: var(--accent, var(--brass));
-  min-height: 1.5em;
+  /* room for the longest prompt, so hovering never shifts the buttons under the pointer */
+  line-height: 1.5;
+  min-height: 3em;
   max-width: 44ch;
   transition: color 0.4s;
 }
 
-/* nothing hovered: brass, the colour that belongs to neither city */
-.launch[data-hover=''] {
+/* nothing hovered, or the game: brass, the colour that belongs to neither city */
+.launch[data-hover=''],
+.launch[data-hover='play'] {
   --accent: var(--brass);
   --glow: transparent;
 }
@@ -289,9 +291,85 @@
 
 .launch[data-warp='under'] .galaxy--top,
 .launch[data-warp='top'] .galaxy--under,
+.launch[data-warp='play'] .galaxy,
+.launch[data-warp='under'] .launch__third,
+.launch[data-warp='top'] .launch__third,
 .launch[data-warp]:not([data-warp='']) .launch__mid {
   opacity: 0;
   transition: opacity 0.5s;
+}
+
+/* ---- the third choice: the game, under both cities, as loud as they are ---- */
+.launch__third {
+  grid-area: play;
+  justify-self: center;
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.launch__or {
+  color: var(--dim);
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  font-size: 11.5px;
+}
+
+/* a brass slab, sheared like the game's own buttons; the label is sheared back upright */
+.launch__play {
+  display: block;
+  padding: 17px 44px 16px;
+  font-family: var(--display);
+  font-weight: 900;
+  font-size: clamp(18px, 1.8vw, 24px);
+  line-height: 1;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--ink);
+  background: var(--brass);
+  transform: skewX(-14deg);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 246, 228, 0.45),
+    inset 0 -3px 0 var(--brass-deep),
+    0 0 28px color-mix(in oklab, var(--brass) 40%, transparent),
+    0 12px 26px rgba(0, 0, 0, 0.5);
+  outline: none;
+  transition: background 0.25s, box-shadow 0.3s, transform 0.3s var(--ease-out);
+}
+
+.launch__play > span {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  transform: skewX(14deg);
+}
+
+/* a play triangle, drawn the same way as the prompt's */
+.launch__play > span::before {
+  content: '';
+  border-left: 0.62em solid currentColor;
+  border-top: 0.38em solid transparent;
+  border-bottom: 0.38em solid transparent;
+}
+
+.launch__play:hover,
+.launch__play:focus-visible {
+  color: var(--ink);
+  text-decoration: none;
+  background: color-mix(in oklab, var(--brass) 78%, var(--paper));
+  transform: skewX(-14deg) translateY(-3px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 246, 228, 0.6),
+    inset 0 -3px 0 var(--brass-deep),
+    0 0 46px color-mix(in oklab, var(--brass) 65%, transparent),
+    0 16px 30px rgba(0, 0, 0, 0.55);
+}
+
+.launch__play:focus-visible {
+  outline: 2px dotted var(--brass);
+  outline-offset: 7px;
 }
 
 .launch__foot {
@@ -308,9 +386,19 @@
 @media (max-width: 720px) {
   .launch__stage {
     grid-template-columns: 1fr;
-    grid-template-areas: 'top' 'mid' 'under';
+    grid-template-areas: 'top' 'mid' 'under' 'play';
     gap: 0;
     align-content: center;
+  }
+
+  .launch__third {
+    gap: 8px;
+    margin-top: 14px;
+  }
+
+  .launch__play {
+    padding: 14px 32px 13px;
+    font-size: 17px;
   }
 
   .galaxy--under,
@@ -349,14 +437,78 @@
     line-height: 1.6;
   }
 
+  .launch__prompt {
+    min-height: 1.5em;
+  }
+
   .launch__foot span:last-child,
   .launch__corner b {
     display: none;
   }
 }
 
+/* short laptop screens: a smaller plate and name keep the third choice on screen */
+@media (min-width: 721px) and (max-height: 860px) {
+  .launch__mid {
+    gap: 8px;
+  }
+
+  .helmet {
+    width: clamp(120px, 22vh, 230px);
+  }
+
+  .launch__name {
+    font-size: clamp(30px, min(5.1vw, 7vh), 62px);
+  }
+
+  .launch__hello {
+    line-height: 1.55;
+  }
+
+  .launch__third {
+    margin-top: 2px;
+    gap: 8px;
+  }
+
+  .launch__play {
+    padding: 14px 38px 13px;
+  }
+}
+
+/* short phones */
+@media (max-width: 720px) and (max-height: 760px) {
+  .galaxy__disc {
+    width: 64px;
+  }
+
+  .helmet {
+    width: min(88px, 26vw);
+  }
+
+  .launch__act {
+    font-size: 10px;
+    letter-spacing: 0.1em;
+  }
+
+  .launch__hello {
+    font-size: 13.5px;
+    line-height: 1.5;
+  }
+
+  .launch__third {
+    margin-top: 8px;
+    gap: 6px;
+  }
+
+  .launch__play {
+    padding: 12px 28px 11px;
+    font-size: 16px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .galaxy__title,
+  .launch__play,
   .helmet__plate,
   .helmet__visor,
   .launch__prompt {

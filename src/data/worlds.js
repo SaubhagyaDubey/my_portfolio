@@ -272,6 +272,9 @@ export const LAUNCH = {
   topTitle: 'the work',
   underCity: 'the undercity',
   topCity: 'topside',
+  playOr: 'or neither',
+  playTitle: 'play the game',
+  play: 'skip the reading. fly the ship, shoot what glows, get on the leaderboard.',
   hint: 'once you are in: hold and drag to fly, or tap a flag',
 }
 
