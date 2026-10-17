@@ -1,10 +1,12 @@
 import { create } from 'zustand'
 import { BOSS } from './creatures.js'
+import { FIRST_WAVE_DELAY } from './rules.js'
+
+export { BOX } from './rules.js'
 
 // Deep Field: Impact. Space Impact, but from behind the ship and in depth.
 // The world rushes toward the camera along +z; the ship stays near z = 0 and moves in a box in x/y.
 
-export const BOX = { x: 12, y: 6.5 } // how far the ship can slide from centre
 export const RAIL = 62 // units/s the world rushes past
 export const SPAWN_Z = -330
 export const PASS_Z = 14 // anything past this is behind the camera
@@ -89,7 +91,7 @@ export function resetGame(startWave = 1) {
   game.waveT = 0
   game.wave = startWave - 1
   game.queue = []
-  game.between = 1.2
+  game.between = FIRST_WAVE_DELAY
   game.bannerT = 0
   game.overT = 0
   game.speed = RAIL

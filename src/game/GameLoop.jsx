@@ -4,7 +4,7 @@ import * as THREE from 'three'
 import { SHIP_EYE, SHIP_MUZZLES } from '../three/ShipModel.jsx'
 import { BOSS, SPECIES } from './creatures.js'
 import { AIM_Z, BOSS_SEGMENTS, BOX, HULL_MAX, PASS_Z, RAIL, ROLL_TIME, SEG_GAP, SHIP_S, SPAWN_Z, burst, firstFree, game, saveBest, segmentPos, useGame } from './state.js'
-import { BOSS_COMBO, multiplier } from './rules.js'
+import { BETWEEN_WAVES, BOSS_CALL, BOSS_COMBO, BOSS_DYING, FIRE_CD, SPLITTER_CHILDREN, TWIN_FIRE_CD, bossHp, multiplier } from './rules.js'
 import { BOSS_EVERY, buildWave, waveLabel } from './waves.js'
 
 const PLAYER_R = 1.0
@@ -103,15 +103,17 @@ function step(dt, city) {
   p.fireCd -= dt
   if (inp.fire && p.alive && p.fireCd <= 0) fire(p)
 
-  // ---- waves
-  if (game.between > 0) {
-    game.between -= dt
-    if (game.between <= 0) startWave(game.wave + 1)
-  } else {
-    while (game.queue.length && game.queue[0].t <= game.waveT) spawn(game.queue.shift())
-    if (!game.queue.length && !game.boss.on && !game.creatures.some((c) => c.on)) {
-      game.between = 2.4
-      announce(`wave ${game.wave} clear`, game.wave % BOSS_EVERY === 0 ? 'the lane is quiet for a second' : 'next one is coming')
+  // ---- waves (frozen while the ship explodes, so the wave you died in is the wave reported)
+  if (p.alive) {
+    if (game.between > 0) {
+      game.between -= dt
+      if (game.between <= 0) startWave(game.wave + 1)
+    } else {
+      while (game.queue.length && game.queue[0].t <= game.waveT) spawn(game.queue.shift())
+      if (!game.queue.length && !game.boss.on && !game.creatures.some((c) => c.on)) {
+        game.between = BETWEEN_WAVES
+        announce(`wave ${game.wave} clear`, game.wave % BOSS_EVERY === 0 ? 'the lane is quiet for a second' : 'next one is coming')
+      }
     }
   }
   if (game.bannerT > 0) {
@@ -180,7 +182,7 @@ function fire(p) {
     const l = Math.hypot(dx, dy, dz)
     Object.assign(s, { on: true, x: mz.x, y: mz.y, z: mz.z, vx: (dx / l) * SHOT_SPEED, vy: (dy / l) * SHOT_SPEED, vz: (dz / l) * SHOT_SPEED, life: 1.5 })
   }
-  p.fireCd = p.twin > 0 ? 0.075 : 0.095
+  p.fireCd = p.twin > 0 ? TWIN_FIRE_CD : FIRE_CD
 }
 
 function spawn(ev) {
@@ -214,8 +216,8 @@ function spawn(ev) {
 
 function spawnBoss() {
   const b = game.boss
-  const cycle = Math.max(1, Math.round(game.wave / BOSS_EVERY))
-  Object.assign(b, { on: true, x: 0, y: 0, z: -460, hp: 70 + (cycle - 1) * 35, max: 70 + (cycle - 1) * 35, t: 0, fireCd: 3, callCd: 7, flash: 0, dying: 0, trailT: 0 })
+  const hp = bossHp(game.wave)
+  Object.assign(b, { on: true, x: 0, y: 0, z: -460, hp, max: hp, t: 0, fireCd: 3, callCd: BOSS_CALL.first, flash: 0, dying: 0, trailT: 0 })
   b.trail.length = 0
   for (let i = 0; i < BOSS_SEGMENTS * SEG_GAP + 2; i++) b.trail.push({ x: 0, y: 0, z: -460 })
   announce('leviathan', 'shoot the head. the body just soaks it up.')
@@ -326,8 +328,8 @@ function kill(c, city) {
   game.score += sp.score * multiplier(game.combo)
   burst(c.x, c.y, c.z, enemyGlow(c.kind, city), c.kind === 'splitter' ? 46 : 30, c.kind === 'splitter' ? 20 : 14, c.kind === 'splitter' ? 1.6 : 1.2)
   if (c.kind === 'splitter') {
-    for (let i = 0; i < 3; i++) {
-      const a = (i / 3) * Math.PI * 2 + Math.random()
+    for (let i = 0; i < SPLITTER_CHILDREN; i++) {
+      const a = (i / SPLITTER_CHILDREN) * Math.PI * 2 + Math.random()
       spawn({ kind: 'dart', x: c.x, y: c.y, z: c.z, vx: Math.cos(a) * 14, vy: Math.sin(a) * 10, pattern: 'burst', phase: 0 })
     }
   }
@@ -375,8 +377,8 @@ function updateBoss(dt, city) {
     }
     b.callCd -= dt
     if (b.callCd <= 0) {
-      b.callCd = 7.5
-      for (let i = 0; i < 4; i++) spawn({ kind: 'dart', x: b.x, y: b.y, z: b.z + 3, vx: (i - 1.5) * 9, vy: (i % 2 ? 1 : -1) * 6, pattern: 'burst', phase: 0 })
+      b.callCd = BOSS_CALL.every
+      for (let i = 0; i < BOSS_CALL.darts; i++) spawn({ kind: 'dart', x: b.x, y: b.y, z: b.z + 3, vx: (i - 1.5) * 9, vy: (i % 2 ? 1 : -1) * 6, pattern: 'burst', phase: 0 })
     }
   }
 }
@@ -386,7 +388,7 @@ function damageBoss(city) {
   b.hp -= 1
   b.flash = 1
   if (b.hp <= 0 && b.dying <= 0) {
-    b.dying = 2.4
+    b.dying = BOSS_DYING
     game.combo += BOSS_COMBO
     game.comboT = 4
     game.score += BOSS.score * multiplier(game.combo)
