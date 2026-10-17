@@ -8,6 +8,9 @@ const windows = (globalThis.__deepFieldLimits ??= new Map())
 const MAX_KEYS = 10_000
 
 export function clientIp(request) {
+  // Netlify sets x-nf-client-connection-ip itself; a client-sent x-forwarded-for can't be trusted there
+  const nf = request.headers.get('x-nf-client-connection-ip')
+  if (nf) return nf.trim()
   // Vercel sets x-real-ip and overwrites x-forwarded-for, so neither can be spoofed there
   const real = request.headers.get('x-real-ip')
   if (real) return real.trim()

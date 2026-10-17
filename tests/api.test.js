@@ -5,7 +5,7 @@ import { GET as getPilot, POST as postPilot } from '../api/pilot.js'
 import { POST as postRun } from '../api/run.js'
 import { POST as postScore } from '../api/score.js'
 import { resetLimits } from '../api/_lib/limit.js'
-import { cleanCallsign } from '../api/_lib/pilot.js'
+import { callsignFrom, cleanCallsign } from '../api/_lib/pilot.js'
 import { issueRun, readRun, sign, verify } from '../api/_lib/sign.js'
 import { useStore } from '../api/_lib/store.js'
 import { checkRun, maxKills, maxScore, minSeconds } from '../api/_lib/validate.js'
@@ -62,6 +62,13 @@ describe('callsigns', () => {
   })
   test('rejects bad shapes and blocked words', () => {
     for (const bad of ['ab', 'x'.repeat(17), '-dash', 'emoji🚀', '<script>', 'f4ggot', 'n1gg4', 42, null]) assert.equal(cleanCallsign(bad), null, String(bad))
+  })
+  test('every suggested callsign is one the player could also type', () => {
+    for (let a = 0; a < 256; a++) for (let b = 0; b < 256; b++) for (const n of [0, 99]) {
+      const s = callsignFrom(a, b, n)
+      assert.equal(cleanCallsign(s), s)
+    }
+    assert.equal(callsignFrom(13, 7, 98), 'copper-lantern98')
   })
 })
 

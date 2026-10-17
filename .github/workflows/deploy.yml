@@ -1,0 +1,41 @@
+name: Deploy to Netlify
+
+# Every push to main builds the site and deploys it to production on Netlify, functions included.
+# Needs two repository secrets (Settings → Secrets and variables → Actions):
+#   NETLIFY_AUTH_TOKEN  a personal access token (Netlify → User settings → Applications)
+#   NETLIFY_SITE_ID     the site's ID (Site configuration → General → Site details)
+# The API's own variables (COOKIE_SECRET, FIREBASE_SERVICE_ACCOUNT) live in Netlify's environment
+# variables, not here: the functions read them at runtime.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: netlify-production
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm test
+
+      - name: Build and deploy
+        run: npx --yes netlify-cli@27 deploy --build --prod --message "${{ github.sha }}"
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}

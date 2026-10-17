@@ -12,8 +12,10 @@ const DEV_SECRET = 'deep-field-dev-only-secret-do-not-use-in-production'
 
 // Fails closed: anything that looks like production must be configured. `vite preview` also sets
 // NODE_ENV=production, so the local dev plugin opts out with DEEP_FIELD_LOCAL=1.
+// On Netlify, netlify/serve.js sets DEEP_FIELD_HOSTED for every deployed function.
 export function isProduction() {
   if (process.env.VERCEL_ENV === 'production') return true
+  if (process.env.DEEP_FIELD_HOSTED === '1') return true
   return process.env.NODE_ENV === 'production' && process.env.DEEP_FIELD_LOCAL !== '1'
 }
 

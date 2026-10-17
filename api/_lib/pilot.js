@@ -49,7 +49,12 @@ export function pilotCookie(id, request) {
 const FIRST = ['rust', 'neon', 'chem', 'brass', 'hex', 'smog', 'quiet', 'loud', 'slow', 'lucky', 'last', 'pale', 'iron', 'copper', 'static', 'velvet']
 const SECOND = ['moth', 'drifter', 'rook', 'spark', 'comet', 'pilot', 'ghost', 'lantern', 'wren', 'piston', 'jelly', 'kite', 'orbit', 'vandal', 'signal', 'magpie']
 
-const callsignFrom = (a, b, n) => `${FIRST[a % FIRST.length]}-${SECOND[b % SECOND.length]}-${String(n % 100).padStart(2, '0')}`
+// The longest pairs (copper-lantern, static-drifter…) leave no room for the last dash under the 16-character cap.
+export const callsignFrom = (a, b, n) => {
+  const words = `${FIRST[a % FIRST.length]}-${SECOND[b % SECOND.length]}`
+  const num = String(n % 100).padStart(2, '0')
+  return words.length + 3 <= 16 ? `${words}-${num}` : `${words}${num}`
+}
 
 // The same suggestion every time for one pilot, so the name doesn't change between visits before it's saved.
 export function callsignFor(pilotId) {

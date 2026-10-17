@@ -1,0 +1,24 @@
+# Netlify: the static site from dist/, the /api handlers as functions (netlify/functions/ wraps api/),
+# and every other path falls back to index.html so deep links like /under and /play work.
+
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+  external_node_modules = ["firebase-admin"]
+
+# Order matters: /api first, then the SPA fallback. A 200 rewrite without force only applies when no
+# static file exists at the path, so /assets/* and /textures/* are still served as files.
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

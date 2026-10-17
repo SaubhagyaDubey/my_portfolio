@@ -115,6 +115,8 @@ Use a **dedicated project on your personal Google account**. The deploy below re
 
 `npm run build` produces a static site in `dist/`; Vercel serves it and deploys `api/` as functions. `vercel.json` rewrites every other path to `index.html` so deep links work.
 
+**Netlify.** `netlify.toml` does the same there: `netlify/functions/` wraps each `api/` handler, `/api/*` is rewritten to them and everything else falls back to `index.html`. `.github/workflows/deploy.yml` builds and deploys to production on every push to `main`; it needs the repository secrets `NETLIFY_AUTH_TOKEN` and `NETLIFY_SITE_ID`. Set `COOKIE_SECRET` and `FIREBASE_SERVICE_ACCOUNT` under Netlify → Site configuration → Environment variables (scope: Functions); without them the leaderboard answers 503 rather than running on a dev key.
+
 ## Visual check without a browser open
 
 `scripts/shoot.mjs` drives headless Chrome over the DevTools protocol, flies through both galaxies and saves screenshots. With the dev server running:
