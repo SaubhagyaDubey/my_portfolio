@@ -6,6 +6,23 @@ export const profile = {
   tagline: 'I build and scale Flutter practices, and ship apps used by millions.',
   email: 'dubeysaubhagya@gmail.com',
   location: 'New Delhi, India',
+  greeting: "hey you! ✦ poke the stickers. i'll look wherever you look.",
+}
+
+// Home page voice: who Saubhagya is, not their CV. Job titles and numbers belong in the Work chapter.
+// Facts marked "draft" are guesses to confirm or replace.
+export const personality = {
+  firstName: 'Saubhagya',
+  bio: 'I make phones do delightful things, grow engineers into teams, and believe software should feel like a friend, not a form.',
+  facts: [
+    'fragment shader nerd',
+    'animations that make you smile',
+    'built 3 mobile teams from zero',
+    '20+ engineers mentored',
+    'spec before code',
+    'chai-powered', // draft
+    'based in New Delhi',
+  ],
 }
 
 export const stats = [
@@ -183,4 +200,17 @@ export const skillGroups = [
 
 export const socials = [
   { label: 'LinkedIn', url: 'https://www.linkedin.com/in/saubhagya-dubey' },
+]
+
+// Chapter content (Phase B). Placeholder copy until the real lines arrive.
+export const interests = [
+  { title: 'Fragment shaders', blurb: 'Making pixels do things they were not asked to do.' },
+  { title: 'Chai', blurb: 'The real build tool.' },
+  { title: 'Cricket season', blurb: 'IPL traffic taught me more about scale than any book.' },
+]
+
+export const philosophies = [
+  { title: 'Ship small', blurb: 'A feature that ships this week beats a perfect one that ships never.' },
+  { title: 'Write the spec first', blurb: 'Contracts and FE specs before code. Alignment is cheaper than rework.' },
+  { title: 'Grow people', blurb: 'The best code I have written is the team that now writes it without me.' },
 ]

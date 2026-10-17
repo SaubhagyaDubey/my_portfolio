@@ -22,3 +22,10 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Secrets and local tooling
+.env
+.env.*
+!.env.example
+.vercel
+*service-account*.json

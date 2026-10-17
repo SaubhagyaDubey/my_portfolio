@@ -1,0 +1,131 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--ink);
+  color: var(--paper);
+  font-family: var(--serif);
+  font-variation-settings: var(--serif-feat);
+  font-size: 17px;
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+img,
+canvas {
+  display: block;
+  max-width: 100%;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+}
+
+a {
+  color: var(--brass);
+  text-decoration: none;
+}
+
+a:hover,
+a:focus-visible {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+:focus-visible {
+  outline: 2px dotted var(--brass);
+  outline-offset: 4px;
+}
+
+/* labels, tags, counters, buttons: plain and legible */
+.mono {
+  font-family: var(--mono);
+  font-variation-settings: normal;
+  font-size: 12.5px;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  line-height: 1.45;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---- paint splash between scenes ----
+   One splat of the destination city's colour grows from where you clicked and covers the screen,
+   the scene changes underneath, then it fades off. The splat shape is drawn once on a canvas
+   (src/lib/texture.js). --splash-s needs @property to animate; App adds .no-prop otherwise. */
+@property --splash-s {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0px;
+}
+
+.splash {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  pointer-events: none;
+  background: var(--splash-color, var(--ink));
+  --splash-s: 0px;
+  -webkit-mask-image: var(--mask-splash, radial-gradient(circle, #000 60%, transparent 61%));
+  mask-image: var(--mask-splash, radial-gradient(circle, #000 60%, transparent 61%));
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: var(--splash-s) var(--splash-s);
+  mask-size: var(--splash-s) var(--splash-s);
+  -webkit-mask-position: calc(var(--splash-x, 50vw) - var(--splash-s) / 2) calc(var(--splash-y, 50vh) - var(--splash-s) / 2);
+  mask-position: calc(var(--splash-x, 50vw) - var(--splash-s) / 2) calc(var(--splash-y, 50vh) - var(--splash-s) / 2);
+  visibility: hidden;
+}
+
+.splash[data-phase='in'] {
+  visibility: visible;
+  --splash-s: 460vmax;
+  transition: --splash-s 0.22s cubic-bezier(0.6, 0, 0.9, 0.4);
+}
+
+.splash[data-phase='out'] {
+  visibility: visible;
+  --splash-s: 460vmax;
+  opacity: 0;
+  transition: opacity 0.26s ease, visibility 0s 0.26s;
+}
+
+.splash.no-prop {
+  -webkit-mask-image: none;
+  mask-image: none;
+  opacity: 0;
+  transition: opacity 0.2s ease, visibility 0s 0.2s;
+}
+
+.splash.no-prop[data-phase='in'] {
+  opacity: 1;
+  transition: opacity 0.2s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .splash {
+    display: none;
+  }
+}

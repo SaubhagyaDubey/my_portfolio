@@ -1,0 +1,712 @@
+/* A galaxy: the WebGL city underneath, painted plates on top.
+   Topside plates are brass with art-deco corner marks; undercity plates are rusted, riveted, stencilled. */
+.explore {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  --plate: linear-gradient(175deg, color-mix(in oklab, var(--plate-a) 92%, var(--ink)), color-mix(in oklab, var(--plate-b) 96%, var(--ink)));
+}
+
+.explore__stage {
+  position: absolute;
+  inset: 0;
+  touch-action: none;
+  cursor: crosshair;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* ---- top plaque ---- */
+.hud {
+  position: absolute;
+  top: calc(12px + env(safe-area-inset-top, 0px));
+  left: 50%;
+  translate: -50% 0;
+  width: min(760px, calc(100% - 24px));
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 18px 5px;
+  background: var(--plate);
+  -webkit-mask-image: var(--mask-plaque, none);
+  mask-image: var(--mask-plaque, none);
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), inset 0 -1px 0 rgba(0, 0, 0, 0.6);
+  color: var(--dim);
+  pointer-events: none;
+  font-family: var(--hud);
+  font-weight: 600;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.hud > * {
+  pointer-events: auto;
+}
+
+.hud button,
+.hud a {
+  background: none;
+  border: 0;
+  padding: 4px 0;
+  color: var(--dim);
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+  border-bottom: 1px dotted transparent;
+  text-decoration: none;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.6);
+  transition: color 0.2s, border-color 0.2s;
+}
+
+.hud button:hover,
+.hud a:hover,
+.hud button:focus-visible,
+.hud a:focus-visible {
+  color: var(--paper);
+  border-bottom-color: var(--paper);
+  outline: none;
+  text-decoration: none;
+}
+
+.hud__back::before {
+  content: '';
+  display: inline-block;
+  width: 0;
+  height: 0;
+  border-right: 6px solid currentColor;
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  margin-right: 8px;
+  vertical-align: 1px;
+}
+
+.hud__world {
+  color: var(--accent);
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.6);
+}
+
+.hud__links {
+  display: flex;
+  gap: 18px;
+}
+
+.hud .hud__play {
+  color: var(--accent);
+}
+
+/* ---- hint ---- */
+.hint {
+  position: absolute;
+  left: 50%;
+  top: 78px;
+  translate: -50% 0;
+  text-align: center;
+  color: var(--paper);
+  pointer-events: none;
+  font-style: italic;
+  font-size: 16px;
+  line-height: 1.6;
+  text-shadow: 0 0 16px var(--ink), 0 0 4px var(--ink), 0 1px 0 var(--ink);
+  transition: opacity 0.8s ease;
+  max-width: calc(100% - 32px);
+}
+
+.hint span {
+  color: var(--dim);
+}
+
+.hint[data-hide='true'] {
+  opacity: 0;
+}
+
+/* ---- flags: small engraved plates on a pin ---- */
+.flags {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.flag {
+  position: absolute;
+  left: 0;
+  top: 0;
+  translate: -50% -100%;
+  pointer-events: auto;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  display: grid;
+  justify-items: center;
+  color: var(--paper);
+  opacity: calc(0.7 + var(--close, 0) * 0.3);
+  will-change: transform;
+  transition: opacity 0.3s;
+}
+
+.flag__label {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  padding: 7px 14px 6px;
+  background: linear-gradient(180deg, color-mix(in oklab, var(--accent) 16%, var(--plate-a)), var(--plate-b));
+  -webkit-mask-image: var(--mask-flag, none);
+  mask-image: var(--mask-flag, none);
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), inset 0 -2px 0 rgba(0, 0, 0, 0.5), inset 0 -3px 0 color-mix(in oklab, var(--accent) 50%, transparent);
+  text-align: center;
+  max-width: 270px;
+  font-family: var(--mono);
+  font-variation-settings: normal;
+  transition: box-shadow 0.25s, filter 0.25s;
+}
+
+.flag__label b {
+  font-family: var(--hud);
+  font-weight: 600;
+  font-size: 13px;
+  line-height: 1.3;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7);
+}
+
+.flag__label small {
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  color: var(--dim);
+  line-height: 1.35;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 244px;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.6);
+}
+
+.flag__pin {
+  position: relative;
+  width: 2px;
+  height: 28px;
+  background: linear-gradient(var(--accent), color-mix(in oklab, var(--accent) 10%, transparent));
+}
+
+.flag__pin::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: -3px;
+  width: 6px;
+  height: 6px;
+  translate: -50% 0;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #fff4dc, var(--rivet) 60%, #1a120c);
+}
+
+.flag:hover .flag__label,
+.flag:focus-visible .flag__label,
+.flag[data-active='true'] .flag__label {
+  filter: drop-shadow(0 0 10px color-mix(in oklab, var(--accent) 55%, transparent));
+}
+
+.flag:hover .flag__label b,
+.flag:focus-visible .flag__label b,
+.flag[data-active='true'] .flag__label b {
+  color: var(--accent);
+}
+
+.flag:focus-visible {
+  outline: none;
+}
+
+.flag:focus-visible .flag__label {
+  outline: 2px dotted var(--brass);
+  outline-offset: 3px;
+}
+
+.flag[data-visited='true'] .flag__label b::after {
+  content: '';
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  margin-left: 7px;
+  rotate: 45deg;
+  background: var(--accent);
+  vertical-align: 2px;
+}
+
+.flag__arrow {
+  display: none;
+}
+
+.flag[data-place='edge'] {
+  translate: -50% -50%;
+  opacity: 0.8;
+}
+
+.flag [data-short] {
+  display: none;
+}
+
+.flag[data-place='edge'] .flag__pin,
+.flag[data-place='edge'] .flag__label small,
+.flag[data-place='edge'] [data-full] {
+  display: none;
+}
+
+.flag[data-place='edge'] [data-short] {
+  display: block;
+}
+
+.flag[data-place='edge'] .flag__label {
+  padding: 5px 10px 4px;
+}
+
+.flag[data-place='edge'] .flag__label b {
+  font-size: 11px;
+}
+
+.flag[data-place='edge'] .flag__arrow {
+  display: block;
+  width: 0;
+  height: 0;
+  margin-top: 5px;
+  border-left: 8px solid var(--accent);
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+  rotate: var(--arrow, 0deg);
+}
+
+/* ---- story panel: a painted plate with a torn edge ---- */
+.story {
+  position: absolute;
+  right: 20px;
+  top: 50%;
+  translate: 0 -50%;
+  width: min(440px, 42vw);
+  max-height: calc(100% - 170px);
+  overflow: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--rivet) transparent;
+  background:
+    linear-gradient(90deg, color-mix(in oklab, var(--accent) 70%, transparent) 0 3px, transparent 3px),
+    linear-gradient(175deg, color-mix(in oklab, var(--plate-a) 88%, var(--ink)), color-mix(in oklab, var(--plate-b) 94%, var(--ink)));
+  -webkit-mask-image: var(--mask-panel, none);
+  mask-image: var(--mask-panel, none);
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  padding: 26px 28px 22px 30px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  animation: story-in 0.32s var(--ease-out) both;
+}
+
+/* paper grain multiplied over the plate */
+.story::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--paper-tile, none) 0 0 / 192px 192px;
+  mix-blend-mode: multiply;
+  opacity: 0.22;
+  pointer-events: none;
+}
+
+.story > * {
+  position: relative;
+}
+
+/* topside: brass art-deco corner marks */
+.explore[data-city='top'] .story::after {
+  content: '';
+  position: absolute;
+  inset: 12px;
+  pointer-events: none;
+  background:
+    linear-gradient(var(--brass), var(--brass)) left top / 22px 1px,
+    linear-gradient(var(--brass), var(--brass)) left top / 1px 22px,
+    linear-gradient(var(--brass), var(--brass)) right top / 22px 1px,
+    linear-gradient(var(--brass), var(--brass)) right top / 1px 22px,
+    linear-gradient(var(--brass), var(--brass)) left bottom / 22px 1px,
+    linear-gradient(var(--brass), var(--brass)) left bottom / 1px 22px,
+    linear-gradient(var(--brass), var(--brass)) right bottom / 22px 1px,
+    linear-gradient(var(--brass), var(--brass)) right bottom / 1px 22px,
+    linear-gradient(var(--brass), var(--brass)) left 5px top 5px / 10px 1px,
+    linear-gradient(var(--brass), var(--brass)) left 5px top 5px / 1px 10px,
+    linear-gradient(var(--brass), var(--brass)) right 5px bottom 5px / 10px 1px,
+    linear-gradient(var(--brass), var(--brass)) right 5px bottom 5px / 1px 10px;
+  background-repeat: no-repeat;
+  opacity: 0.75;
+}
+
+/* undercity: four rivets */
+.explore[data-city='under'] .story::after {
+  content: '';
+  position: absolute;
+  inset: 10px;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 35% 35%, #e8c9a8, var(--rivet) 55%, #120c08 80%, transparent 85%) left top / 8px 8px,
+    radial-gradient(circle at 35% 35%, #e8c9a8, var(--rivet) 55%, #120c08 80%, transparent 85%) right top / 8px 8px,
+    radial-gradient(circle at 35% 35%, #e8c9a8, var(--rivet) 55%, #120c08 80%, transparent 85%) left bottom / 8px 8px,
+    radial-gradient(circle at 35% 35%, #e8c9a8, var(--rivet) 55%, #120c08 80%, transparent 85%) right bottom / 8px 8px;
+  background-repeat: no-repeat;
+}
+
+.story header {
+  display: grid;
+  grid-template-columns: 60px 1fr auto;
+  gap: 14px;
+  align-items: start;
+  margin-bottom: 14px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid color-mix(in oklab, var(--rivet) 45%, transparent);
+}
+
+.explore[data-city='top'] .story header {
+  border-bottom: 0;
+  background: linear-gradient(90deg, transparent, var(--brass) 20%, var(--brass) 80%, transparent) bottom / 100% 1px no-repeat;
+}
+
+.story__face {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  overflow: hidden;
+  position: relative;
+  background: radial-gradient(circle at 50% 40%, color-mix(in oklab, var(--accent) 22%, #1a1612), #0d0b09 70%);
+  box-shadow: 0 0 0 2px var(--rivet), 0 0 0 3px rgba(0, 0, 0, 0.6), 0 6px 14px -6px #000;
+}
+
+.story__face img {
+  position: absolute;
+  left: 50%;
+  bottom: -6%;
+  width: 96%;
+  translate: -50% 0;
+}
+
+.story h2 {
+  margin: 2px 0 2px;
+  font-family: var(--display);
+  font-size: 23px;
+  line-height: 1.12;
+  font-weight: var(--display-weight);
+  letter-spacing: var(--display-track);
+  text-transform: uppercase;
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.45);
+}
+
+.story__where {
+  color: var(--accent);
+  font-size: 11.5px;
+  letter-spacing: 0.06em;
+}
+
+.story__fact {
+  color: var(--dim);
+  font-size: 11.5px;
+  letter-spacing: 0.03em;
+  margin-top: 4px;
+}
+
+.explore[data-city='under'] .story__fact {
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 10.5px;
+}
+
+.story p {
+  margin: 0 0 13px;
+  font-size: 17px;
+  line-height: 1.7;
+  font-variation-settings: var(--serif-feat);
+}
+
+.story__close {
+  background: none;
+  border: 0;
+  color: var(--dim);
+  font-family: var(--mono);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 6px;
+}
+
+.story__close:hover {
+  color: var(--paper);
+}
+
+.story footer {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+/* pressed metal */
+.btn {
+  font-family: var(--mono);
+  font-variation-settings: normal;
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: linear-gradient(180deg, color-mix(in oklab, var(--rivet) 35%, var(--plate-a)), var(--plate-b));
+  border: 0;
+  color: var(--paper);
+  padding: 10px 16px 9px;
+  cursor: pointer;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), inset 0 -2px 0 rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(0, 0, 0, 0.5);
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.6);
+  transition: background 0.2s, color 0.2s;
+}
+
+.btn:hover,
+.btn:focus-visible {
+  background: linear-gradient(180deg, color-mix(in oklab, var(--accent) 28%, var(--plate-a)), var(--plate-b));
+}
+
+.btn:focus-visible {
+  outline: 2px dotted var(--brass);
+  outline-offset: 3px;
+}
+
+.btn:active {
+  translate: 0 1px;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(0, 0, 0, 0.5);
+}
+
+.btn--primary {
+  color: var(--accent);
+}
+
+.contact {
+  display: grid;
+  gap: 4px;
+  margin: 2px 0 14px;
+  font-size: 14px;
+}
+
+/* the panel is painted on from the left, a ragged edge sweeping across */
+@keyframes story-in {
+  from {
+    opacity: 0;
+    clip-path: polygon(0 0, 6% 0, 3% 12%, 7% 26%, 2% 41%, 6% 55%, 1% 70%, 5% 84%, 2% 100%, 0 100%);
+  }
+  to {
+    opacity: 1;
+    clip-path: polygon(0 0, 106% 0, 103% 12%, 107% 26%, 102% 41%, 106% 55%, 101% 70%, 105% 84%, 102% 100%, 0 100%);
+  }
+}
+
+/* ---- route strip ---- */
+.route {
+  position: absolute;
+  left: 50%;
+  bottom: max(14px, env(safe-area-inset-bottom, 0px));
+  translate: -50% 0;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 9px 18px 7px;
+  background: var(--plate);
+  -webkit-mask-image: var(--mask-plaque, none);
+  mask-image: var(--mask-plaque, none);
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), inset 0 -1px 0 rgba(0, 0, 0, 0.6);
+  max-width: calc(100% - 24px);
+}
+
+.route ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  align-items: flex-start;
+}
+
+.route li {
+  display: flex;
+  align-items: flex-start;
+}
+
+.route li + li::before {
+  content: '';
+  width: 22px;
+  height: 1px;
+  background: color-mix(in oklab, var(--rivet) 70%, transparent);
+  margin-top: 10px;
+}
+
+.route button {
+  background: none;
+  border: 0;
+  padding: 3px 2px;
+  cursor: pointer;
+  display: grid;
+  justify-items: center;
+  gap: 5px;
+  color: var(--dim);
+}
+
+/* topside: hextech gems, lit when visited */
+.route__dot {
+  width: 10px;
+  height: 10px;
+  margin-top: 1px;
+  rotate: 45deg;
+  border: 1px solid var(--accent);
+  transition: background 0.3s, box-shadow 0.3s;
+}
+
+.route button[data-visited='true'] .route__dot {
+  background: var(--accent);
+  box-shadow: inset 0 0 4px #fff, 0 0 6px color-mix(in oklab, var(--accent) 60%, transparent);
+}
+
+/* undercity: chem vials that fill when visited */
+.explore[data-city='under'] .route__dot {
+  rotate: 0deg;
+  width: 8px;
+  height: 14px;
+  margin-top: -1px;
+  border-radius: 1px 1px 4px 4px;
+  background: linear-gradient(to top, color-mix(in oklab, var(--accent) 25%, transparent) 0 25%, transparent 25%);
+}
+
+.explore[data-city='under'] .route button[data-visited='true'] .route__dot {
+  background: linear-gradient(to top, var(--accent) 0 72%, transparent 72%);
+  box-shadow: 0 0 6px color-mix(in oklab, var(--accent) 55%, transparent);
+}
+
+.route button[data-kind='gate'] .route__dot {
+  border-style: dashed;
+  border-color: var(--accent2);
+  border-radius: 50%;
+  rotate: 0deg;
+  width: 10px;
+  height: 10px;
+  background: none;
+}
+
+.route button[data-current='true'] .route__dot {
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 35%, transparent);
+}
+
+.route__name {
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  max-width: 82px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.6);
+}
+
+.route button:hover .route__name,
+.route button:focus-visible .route__name,
+.route button[data-current='true'] .route__name {
+  color: var(--paper);
+}
+
+.route button:focus-visible {
+  outline: 1px dotted var(--brass);
+  outline-offset: 2px;
+}
+
+.route__count {
+  color: var(--accent);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+@media (max-width: 760px) {
+  .hud {
+    padding-inline: 12px;
+    letter-spacing: 0.04em;
+  }
+
+  .hud__world {
+    display: none;
+  }
+
+  .story {
+    right: 10px;
+    left: 10px;
+    top: auto;
+    bottom: 74px;
+    translate: none;
+    width: auto;
+    max-height: 48vh;
+    padding: 18px 18px 16px 20px;
+  }
+
+  .story header {
+    grid-template-columns: 46px 1fr auto;
+    gap: 10px;
+  }
+
+  .story__face {
+    width: 46px;
+    height: 46px;
+  }
+
+  .story h2 {
+    font-size: 22px;
+  }
+
+  .story p {
+    font-size: 15.5px;
+  }
+
+  .route {
+    gap: 10px;
+    padding: 7px 12px 5px;
+  }
+
+  .route__name {
+    display: none;
+  }
+
+  .route li + li::before {
+    width: 10px;
+  }
+
+  .hint {
+    top: 64px;
+    font-size: 14.5px;
+  }
+
+  .flag__label {
+    max-width: 190px;
+  }
+
+  .flag__label small {
+    max-width: 166px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .story {
+    animation: none;
+  }
+
+  .flag,
+  .hint,
+  .btn {
+    transition: none;
+  }
+}

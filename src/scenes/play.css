@@ -1,0 +1,760 @@
+/* Deep Field: Impact. Same plates and palette as the galaxies; Orbitron for the big numbers, Chakra Petch for the HUD. */
+.play {
+  --plate: linear-gradient(175deg, color-mix(in oklab, var(--plate-a) 92%, var(--ink)), color-mix(in oklab, var(--plate-b) 96%, var(--ink)));
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: var(--sky-a);
+  color: var(--paper);
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.play__stage {
+  position: absolute;
+  inset: 0;
+  touch-action: none;
+  cursor: crosshair;
+}
+
+.play[data-phase='playing'] .play__stage {
+  cursor: none;
+}
+
+/* ---------- HUD ---------- */
+.play__hud {
+  position: absolute;
+  top: calc(12px + env(safe-area-inset-top, 0px));
+  left: 50%;
+  translate: -50% 0;
+  width: min(980px, calc(100% - 24px));
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 16px 5px;
+  background: var(--plate);
+  -webkit-mask-image: var(--mask-plaque, none);
+  mask-image: var(--mask-plaque, none);
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), inset 0 -1px 0 rgba(0, 0, 0, 0.6), inset 0 -2px 0 color-mix(in oklab, var(--accent) 45%, transparent);
+  font-family: var(--hud);
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--dim);
+  pointer-events: none;
+}
+
+.play__hud > * {
+  pointer-events: auto;
+}
+
+.play__hud-left,
+.play__hud-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.play__hud-right {
+  justify-content: flex-end;
+}
+
+.play__hud button {
+  background: none;
+  border: 0;
+  padding: 4px 0;
+  color: var(--dim);
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+  border-bottom: 1px dotted transparent;
+  transition: color 0.2s, border-color 0.2s;
+}
+
+.play__hud button:hover,
+.play__hud button:focus-visible {
+  color: var(--paper);
+  border-bottom-color: var(--paper);
+  outline: none;
+}
+
+.play__back {
+  white-space: nowrap;
+}
+
+.play__back::before {
+  content: '';
+  display: inline-block;
+  width: 0;
+  height: 0;
+  border-right: 6px solid currentColor;
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  margin-right: 8px;
+  vertical-align: 1px;
+}
+
+.play__wave {
+  color: var(--accent);
+}
+
+.play__score {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-height: 1em;
+}
+
+.play__score b {
+  font-family: var(--hud);
+  font-weight: 600;
+  font-size: 22px;
+  letter-spacing: 0.14em;
+  color: var(--paper);
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 14px color-mix(in oklab, var(--glow) 40%, transparent);
+}
+
+.play__mult {
+  color: var(--accent2);
+  font-size: 15px;
+}
+
+.play__twin {
+  color: var(--glow);
+  font-size: 11px;
+  animation: play-blink 1s steps(2) infinite;
+}
+
+.play__hull {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.play__hull i {
+  width: 14px;
+  height: 9px;
+  transform: skewX(-20deg);
+  background: color-mix(in oklab, var(--accent) 18%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--accent) 50%, transparent);
+}
+
+.play__hull i[data-on='true'] {
+  background: var(--accent);
+  box-shadow: 0 0 8px color-mix(in oklab, var(--accent) 70%, transparent);
+}
+
+/* ---------- reticle, cockpit frame, hit flash ---------- */
+.play__reticle {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 34px;
+  height: 34px;
+  margin: -17px 0 0 -17px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s;
+  background:
+    linear-gradient(var(--glow), var(--glow)) center top / 2px 9px no-repeat,
+    linear-gradient(var(--glow), var(--glow)) center bottom / 2px 9px no-repeat,
+    linear-gradient(var(--glow), var(--glow)) left center / 9px 2px no-repeat,
+    linear-gradient(var(--glow), var(--glow)) right center / 9px 2px no-repeat;
+  filter: drop-shadow(0 0 4px var(--glow));
+  will-change: transform;
+}
+
+.play__reticle::after {
+  content: '';
+  position: absolute;
+  inset: 13px;
+  border-radius: 50%;
+  background: var(--glow);
+}
+
+.play[data-phase='playing'] .play__reticle {
+  opacity: 0.9;
+}
+
+.play__cockpit {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(120% 90% at 50% 45%, transparent 58%, color-mix(in oklab, var(--plate-b) 70%, transparent) 78%, var(--ink) 100%),
+    linear-gradient(to top, color-mix(in oklab, var(--plate-b) 85%, transparent) 0 6%, transparent 18%);
+}
+
+.play__cockpit::before,
+.play__cockpit::after {
+  content: '';
+  position: absolute;
+  top: 18%;
+  bottom: 14%;
+  width: 70px;
+  border: 2px solid color-mix(in oklab, var(--accent) 55%, transparent);
+}
+
+.play__cockpit::before {
+  left: 6%;
+  border-right: 0;
+}
+
+.play__cockpit::after {
+  right: 6%;
+  border-left: 0;
+}
+
+.play__hit {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, transparent 40%, rgba(255, 60, 50, 0.55));
+  animation: play-hit 0.5s ease-out forwards;
+}
+
+@keyframes play-hit {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes play-blink {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+/* ---------- wave banner and boss bar ---------- */
+.play__banner {
+  position: absolute;
+  top: 26%;
+  left: 50%;
+  translate: -50% 0;
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  text-align: center;
+  pointer-events: none;
+  animation: play-banner 2.6s var(--ease-out) forwards;
+}
+
+.play__banner b {
+  font-family: var(--display);
+  font-weight: 900;
+  font-size: clamp(28px, 5vw, 54px);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--paper);
+  text-shadow: 0 0 24px color-mix(in oklab, var(--glow) 55%, transparent), 0 2px 0 rgba(0, 0, 0, 0.5);
+}
+
+.play__banner span {
+  font-family: var(--hud);
+  font-weight: 500;
+  font-size: 15px;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+}
+
+@keyframes play-banner {
+  0% {
+    opacity: 0;
+    letter-spacing: 0.4em;
+  }
+  12% {
+    opacity: 1;
+    letter-spacing: 0.1em;
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.play__boss {
+  position: absolute;
+  bottom: calc(22px + env(safe-area-inset-bottom, 0px));
+  left: 50%;
+  translate: -50% 0;
+  width: min(520px, calc(100% - 48px));
+  display: grid;
+  gap: 6px;
+  font-family: var(--hud);
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--accent2);
+  text-align: center;
+  pointer-events: none;
+}
+
+.play__boss i {
+  height: 8px;
+  background: linear-gradient(90deg, var(--accent2) calc(var(--hp) * 100%), color-mix(in oklab, var(--accent2) 15%, transparent) 0);
+  box-shadow: 0 0 12px color-mix(in oklab, var(--accent2) 50%, transparent);
+  transform: skewX(-20deg);
+  transition: background 0.15s;
+}
+
+.play__roll {
+  position: absolute;
+  right: calc(18px + env(safe-area-inset-right, 0px));
+  bottom: calc(28px + env(safe-area-inset-bottom, 0px));
+  width: 74px;
+  height: 74px;
+  border-radius: 50%;
+  border: 2px solid var(--accent);
+  background: color-mix(in oklab, var(--plate-b) 70%, transparent);
+  color: var(--accent);
+  font-family: var(--hud);
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  touch-action: none;
+}
+
+/* ---------- title, pause and end cards ---------- */
+.play__card {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  translate: -50% -50%;
+  width: min(560px, calc(100% - 32px));
+  max-height: calc(100% - 120px);
+  overflow: auto;
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  padding: 28px 28px 24px;
+  text-align: center;
+  background: color-mix(in oklab, var(--plate-b) 82%, transparent);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), inset 0 -3px 0 color-mix(in oklab, var(--accent) 50%, transparent), 0 20px 60px rgba(0, 0, 0, 0.5);
+  animation: play-card 0.5s var(--ease-out);
+}
+
+.play__card--title {
+  top: auto;
+  bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  translate: -50% 0;
+}
+
+@keyframes play-card {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}
+
+.play__kicker {
+  margin: 0;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  font-size: 11.5px;
+}
+
+.play__logo {
+  margin: 0;
+  display: grid;
+  gap: 2px;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.play__logo span {
+  font-family: var(--hud);
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: 0.5em;
+  color: var(--dim);
+}
+
+.play__logo b {
+  font-family: var(--display);
+  font-weight: 900;
+  font-size: clamp(40px, 8vw, 68px);
+  letter-spacing: 0.08em;
+  color: var(--paper);
+  text-shadow: 0 0 28px color-mix(in oklab, var(--glow) 50%, transparent), 3px 3px 0 color-mix(in oklab, var(--accent2) 70%, transparent);
+}
+
+.play__card-title {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  font-family: var(--display);
+  font-weight: 900;
+  font-size: clamp(30px, 6vw, 48px);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.play__card-title--score {
+  font-family: var(--hud);
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  color: var(--glow);
+  text-shadow: 0 0 22px color-mix(in oklab, var(--glow) 45%, transparent);
+}
+
+.play__lede {
+  margin: 0;
+  max-width: 44ch;
+  font-size: 15.5px;
+  line-height: 1.6;
+  color: var(--paper);
+  text-wrap: pretty;
+}
+
+.play__controls {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 3px;
+  color: var(--dim);
+}
+
+.play__controls b {
+  color: var(--paper);
+  font-weight: 500;
+}
+
+.play__row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px 18px;
+  align-items: center;
+}
+
+.play__start,
+.play__ghost {
+  font-family: var(--hud);
+  font-weight: 600;
+  font-size: 15px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.play__start {
+  padding: 11px 30px 10px;
+  border: 0;
+  color: var(--ink);
+  background: var(--accent);
+  clip-path: polygon(10px 0, 100% 0, calc(100% - 10px) 100%, 0 100%);
+  box-shadow: 0 0 22px color-mix(in oklab, var(--accent) 50%, transparent);
+  transition: filter 0.2s, transform 0.2s var(--ease-out);
+}
+
+.play__start:hover,
+.play__start:focus-visible {
+  filter: brightness(1.15);
+  transform: translateY(-1px);
+}
+
+.play__ghost {
+  padding: 8px 0;
+  border: 0;
+  background: none;
+  color: var(--dim);
+  border-bottom: 1px dotted currentColor;
+  font-size: 13px;
+}
+
+.play__ghost:hover,
+.play__ghost:focus-visible {
+  color: var(--paper);
+}
+
+.play__meta {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px 18px;
+  color: var(--faint);
+}
+
+.play__meta a {
+  color: var(--dim);
+}
+
+/* ---------- the board ---------- */
+.play__side {
+  position: absolute;
+  top: calc(84px + env(safe-area-inset-top, 0px));
+  right: 24px;
+  width: 320px;
+  padding: 16px 18px 14px;
+  background: color-mix(in oklab, var(--plate-b) 82%, transparent);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), inset 0 -3px 0 color-mix(in oklab, var(--accent) 50%, transparent), 0 20px 60px rgba(0, 0, 0, 0.45);
+  animation: play-card 0.5s var(--ease-out);
+}
+
+.board {
+  display: grid;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+}
+
+.board__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.board__head b {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.board__head span {
+  color: var(--faint);
+  font-size: 11px;
+}
+
+.board__empty {
+  margin: 0;
+  color: var(--dim);
+}
+
+.board__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 2px;
+  font-family: var(--hud);
+  font-weight: 500;
+  font-size: 14px;
+  letter-spacing: 0.04em;
+}
+
+.board__list li {
+  display: grid;
+  grid-template-columns: 2.2ch 1fr auto auto;
+  align-items: baseline;
+  gap: 10px;
+  padding: 3px 6px;
+  color: var(--dim);
+}
+
+.board__list li[data-me='true'] {
+  color: var(--paper);
+  background: color-mix(in oklab, var(--accent) 16%, transparent);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.board__you {
+  margin-top: 6px;
+  border-top: 1px dotted color-mix(in oklab, var(--accent) 40%, transparent);
+}
+
+.board__rank {
+  color: var(--faint);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.board__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* a dot in the colour of the city the best run was flown in */
+.board__list li[data-city] .board__name::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 7px;
+  border-radius: 50%;
+  vertical-align: 2px;
+  background: var(--faint);
+}
+
+.board__list li[data-city='under'] .board__name::before {
+  background: #8ff07a;
+}
+
+.board__list li[data-city='top'] .board__name::before {
+  background: #5fd7ff;
+}
+
+.board__wave {
+  color: var(--faint);
+  font-size: 11px;
+}
+
+.board__score {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.1em;
+  color: var(--paper);
+}
+
+.board__me {
+  margin: 2px 0 0;
+  color: var(--dim);
+}
+
+.board__me b {
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.board__me button,
+.board__form button {
+  background: none;
+  border: 0;
+  padding: 2px 0;
+  color: var(--dim);
+  font: inherit;
+  cursor: pointer;
+  border-bottom: 1px dotted currentColor;
+}
+
+.board__me button:hover,
+.board__form button:hover {
+  color: var(--paper);
+}
+
+.board__form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.board__form label {
+  color: var(--faint);
+}
+
+.board__form input {
+  flex: 1;
+  min-width: 0;
+  padding: 5px 8px;
+  border: 1px solid color-mix(in oklab, var(--accent) 50%, transparent);
+  background: color-mix(in oklab, var(--ink) 70%, transparent);
+  color: var(--paper);
+  font-family: var(--hud);
+  font-size: 14px;
+  letter-spacing: 0.06em;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.board__form input:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.board__error {
+  flex-basis: 100%;
+  margin: 0;
+  color: #ff8a7a;
+}
+
+.board__note {
+  margin: 0;
+  color: var(--accent);
+}
+
+.board__note--off {
+  color: var(--faint);
+}
+
+/* inside a card the board sits in a quieter box */
+.play__card .board {
+  max-width: 400px;
+  padding: 10px 12px;
+  background: color-mix(in oklab, var(--ink) 35%, transparent);
+}
+
+.play__card .board__list {
+  font-size: 13px;
+}
+
+@media (max-width: 720px) {
+  .play__hud {
+    grid-template-columns: auto 1fr auto;
+    font-size: 11.5px;
+    letter-spacing: 0.06em;
+    padding-inline: 12px;
+  }
+
+  .play__hud-left,
+  .play__hud-right {
+    gap: 10px;
+  }
+
+  .play__wave {
+    display: none;
+  }
+
+  /* just the arrow */
+  .play__hud .play__back {
+    font-size: 0;
+    padding: 6px 4px;
+  }
+
+  .play__back::before {
+    margin-right: 0;
+  }
+
+  .play__score {
+    justify-content: center;
+  }
+
+  .play__score b {
+    font-size: 16px;
+  }
+
+  .play__twin {
+    display: none;
+  }
+
+  .play__card {
+    padding: 22px 18px 18px;
+    gap: 10px;
+  }
+
+  .play__lede {
+    font-size: 14.5px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .play__banner,
+  .play__card,
+  .play__twin {
+    animation: none;
+  }
+
+  .play__hit {
+    animation-duration: 0.01s;
+  }
+}

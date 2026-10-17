@@ -1,0 +1,32 @@
+/* Deep Field tokens. Mirrors BASE in src/data/palette.js; per-city colours arrive as inline vars. See DESIGN.md. */
+:root {
+  color-scheme: dark;
+
+  --ink: #0a0b0f;
+  --paper: #efe3cf;
+  --dim: #c9bda6;
+  --faint: #857a69;
+  --line: #2b2520;
+  --brass: #d9a84e;
+  --brass-deep: #8a6424;
+
+  /* city defaults (undercity); scenes override these inline */
+  --accent: #8ff07a;
+  --accent2: #ff5fa8;
+  --glow: #c8ff6a;
+  --plate-a: #2a1d18;
+  --plate-b: #140f0d;
+  --rivet: #8a4a2b;
+  --sky-a: #081311;
+  --sky-b: #1a352a;
+
+  --display: 'Orbitron', 'Chakra Petch', ui-sans-serif, system-ui, sans-serif;
+  --display-weight: 700;
+  --display-track: 0.04em;
+  --hud: 'Chakra Petch', 'IBM Plex Mono', ui-monospace, monospace;
+  --serif: 'Fraunces Variable', 'Fraunces', Georgia, serif;
+  --mono: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
+  --serif-feat: 'opsz' 14, 'WONK' 1, 'SOFT' 30;
+
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
