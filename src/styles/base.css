@@ -34,7 +34,7 @@ button {
 }
 
 a {
-  color: var(--brass);
+  color: var(--steel);
   text-decoration: none;
 }
 
@@ -45,7 +45,7 @@ a:focus-visible {
 }
 
 :focus-visible {
-  outline: 2px dotted var(--brass);
+  outline: 2px dotted var(--steel);
   outline-offset: 4px;
 }
 
@@ -71,57 +71,42 @@ a:focus-visible {
   border: 0;
 }
 
-/* ---- paint splash between scenes ----
-   One splat of the destination city's colour grows from where you clicked and covers the screen,
-   the scene changes underneath, then it fades off. The splat shape is drawn once on a canvas
-   (src/lib/texture.js). --splash-s needs @property to animate; App adds .no-prop otherwise. */
-@property --splash-s {
-  syntax: '<length>';
-  inherits: false;
-  initial-value: 0px;
-}
-
+/* ---- hex wipe between scenes ----
+   A hextech iris in the destination city's colour opens from where you clicked and covers the screen,
+   the scene changes underneath, then it fades off. Both states are six-point polygons, so clip-path
+   interpolates between them. At 180vmax the hexagon's inner radius covers the screen from any origin. */
 .splash {
+  --sx: var(--splash-x, 50vw);
+  --sy: var(--splash-y, 50vh);
   position: fixed;
   inset: 0;
   z-index: 50;
   pointer-events: none;
   background: var(--splash-color, var(--ink));
-  --splash-s: 0px;
-  -webkit-mask-image: var(--mask-splash, radial-gradient(circle, #000 60%, transparent 61%));
-  mask-image: var(--mask-splash, radial-gradient(circle, #000 60%, transparent 61%));
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-  -webkit-mask-size: var(--splash-s) var(--splash-s);
-  mask-size: var(--splash-s) var(--splash-s);
-  -webkit-mask-position: calc(var(--splash-x, 50vw) - var(--splash-s) / 2) calc(var(--splash-y, 50vh) - var(--splash-s) / 2);
-  mask-position: calc(var(--splash-x, 50vw) - var(--splash-s) / 2) calc(var(--splash-y, 50vh) - var(--splash-s) / 2);
+  clip-path: polygon(var(--sx) var(--sy), var(--sx) var(--sy), var(--sx) var(--sy), var(--sx) var(--sy), var(--sx) var(--sy), var(--sx) var(--sy));
   visibility: hidden;
 }
 
-.splash[data-phase='in'] {
+.splash[data-phase='in'],
+.splash[data-phase='out'] {
   visibility: visible;
-  --splash-s: 460vmax;
-  transition: --splash-s 0.22s cubic-bezier(0.6, 0, 0.9, 0.4);
+  clip-path: polygon(
+    var(--sx) calc(var(--sy) - 180vmax),
+    calc(var(--sx) + 156vmax) calc(var(--sy) - 90vmax),
+    calc(var(--sx) + 156vmax) calc(var(--sy) + 90vmax),
+    var(--sx) calc(var(--sy) + 180vmax),
+    calc(var(--sx) - 156vmax) calc(var(--sy) + 90vmax),
+    calc(var(--sx) - 156vmax) calc(var(--sy) - 90vmax)
+  );
+}
+
+.splash[data-phase='in'] {
+  transition: clip-path 0.22s cubic-bezier(0.6, 0, 0.9, 0.4);
 }
 
 .splash[data-phase='out'] {
-  visibility: visible;
-  --splash-s: 460vmax;
   opacity: 0;
   transition: opacity 0.26s ease, visibility 0s 0.26s;
-}
-
-.splash.no-prop {
-  -webkit-mask-image: none;
-  mask-image: none;
-  opacity: 0;
-  transition: opacity 0.2s ease, visibility 0s 0.2s;
-}
-
-.splash.no-prop[data-phase='in'] {
-  opacity: 1;
-  transition: opacity 0.2s ease;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -23,13 +23,13 @@ The dev server runs at http://localhost:5173.
 | `npm run build`   | Build for production into `dist/`           |
 | `npm run preview` | Serve the production build locally          |
 | `npm run lint`    | Lint the project with Oxlint                |
-| `npm test`        | Run the API tests (`node:test`, no deps)    |
+| `npm test`        | Run the tests (`node:test`, no deps)        |
 
 ## Routes
 
 | Path     | What it is                                                   |
 | -------- | ------------------------------------------------------------ |
-| `/`      | Launch: a title card with both cities and my name between    |
+| `/`      | The ride: hold space in the cockpit, four stops, then pick me, the work or the game |
 | `/under` | The undercity, me: where I'm from, what I read, why I build  |
 | `/top`   | Topside, the work: six places since 2020, and how to say hi  |
 | `/text`  | Everything as plain text, plus experience, skills, education |
@@ -41,15 +41,17 @@ The dev server runs at http://localhost:5173.
 
 ## Editing content
 
-Everything a visitor reads is in `src/data/worlds.js`: each stop's name, its factual flag line (`fact`), its poetic tag, story paragraphs, position on the map and look. Every colour is in `src/data/palette.js` (mirrored in `src/styles/tokens.css`). Professional details for the text version are in `src/data/portfolio.js`. The sixteen face frames are in `src/assets/portrait/`; they are painted at load by a worker until Arcane-style redraws replace them (see `PAINT_PORTRAITS` in `src/data/portrait.js`).
+Everything a visitor reads is in `src/data/worlds.js`: each stop's name, its factual flag line (`fact`), its poetic tag, story paragraphs, position on the map and look. Every colour is in `src/data/palette.js` (mirrored in `src/styles/tokens.css`). Professional details for the text version are in `src/data/portfolio.js`. The home page's ride (its four stops and the fork) is in `src/data/journey.js`. The sixteen face frames are in `src/assets/portrait/`; the home page no longer shows them.
 
-The painted look is a post-processing stack sized to the device. URL overrides:
+The post-processing stack (ink, bloom, grade, lens) is sized to the device; the frame itself stays clean, with no brush, paper or grain. URL overrides:
 
-| Query    | Effect                                                   |
-| -------- | -------------------------------------------------------- |
-| `?fx=0`  | No post-processing at all (debug view)                   |
-| `?fx=1`  | Light tier: smaller brush, lighter ink                   |
-| `?fx=2`  | Full tier: 5x5 Kuwahara brush, depth + luminance ink     |
+| Query           | Effect                                                     |
+| --------------- | ---------------------------------------------------------- |
+| `?fx=0`         | No post-processing at all (debug view)                     |
+| `?fx=1`         | Light tier: lighter ink                                    |
+| `?fx=2`         | Full tier: depth + luminance ink, MSAA                     |
+| `?journey=0`/`1` | Open the home page at the fork, or force the ride again  |
+| `?stop=<id>`    | On `/under` or `/top`: start at that stop (`/top?stop=tide`) |
 
 Fonts: Orbitron (display), Chakra Petch (HUD), Fraunces (reading), IBM Plex Mono (labels), all self-hosted through Fontsource.
 
@@ -61,18 +63,17 @@ CONCEPT.md                 How the idea got here, iteration by iteration
 public/textures/           Earth maps (NASA Blue Marble via the three.js examples)
 public/assets/             Source grid of the portrait headshots
 src/
-  data/                    worlds.js (all copy), palette.js (all colour), portfolio.js, portrait.js
+  data/                    worlds.js (all copy), journey.js (the home ride), palette.js (all colour), portfolio.js, portrait.js
   state/                   zustand store + per-frame simulation state
   three/                   shaders.js and every scene object; Simulation.jsx is the flight model
-  three/post/              the painted look: Paint (Kuwahara), Ink, Grade, Lens effects
-  workers/                 paint.worker.js, which paints the portrait frames off the main thread
-  lib/                     router, warp (paint-splash transition), tier (device quality), texture (masks)
-  scenes/                  Launch, Explore, TextVersion, Play
-  components/              Helmet, Flags, StoryPanel, RouteBar, Hud
-  game/                    the shooter: GameLoop (all logic), state, waves, creatures, rules (shared with the API), board (leaderboard client)
-  styles/                  tokens.css, base.css
+  three/post/              Ink, Grade, Lens effects
+  lib/                     router, warp (hex-wipe transition), tier (device quality), journey (the home ride), arrival (deep links)
+  scenes/                  Journey (home), Explore, TextVersion, Play
+  components/              Flags, StoryPanel, RouteBar, Hud
+  game/                    the shooter: GameLoop (all logic), state, waves, creatures, lanes (a new palette every wave), specials (one-shot pickups), rules (shared with the API), board (leaderboard client)
+  styles/                  tokens.css, base.css, poster.css (poster type shared by stops and the ride)
 api/                       Vercel functions for the leaderboard; shared code in api/_lib/
-tests/                     API tests
+tests/                     API tests, the home ride's state machine, launch-card helpers (previews, deep links)
 ```
 
 ## Leaderboard backend
@@ -89,7 +90,7 @@ tests/                     API tests
 
 **Accounts are cookies.** A visitor's pilot is a random id in a signed, HttpOnly `df_pilot` cookie scoped to `/api`. No sign-up; clearing cookies starts a new pilot. The board shows callsigns and a public tag, never the id. Nothing is written to Firestore until a pilot's first accepted score.
 
-**Scores are checked against the game, not trusted.** A run token is issued at launch and can be spent once, only by the same cookie, within four hours. The API replays the game's own wave plan (`src/game/waveplan.js` and `src/game/rules.js`, shared with the game) to know how many creatures a run could have met by the wave it reports, the most those kills can score, and how soon that wave can be reached. The game runs in the browser, so a determined cheat can still post a perfect-play score; if one does, delete their doc in `pilots/` from the Firebase console.
+**Scores are checked against the game, not trusted.** A run token is issued at launch and can be spent once, only by the same cookie, within four hours. The API replays the game's own wave plan (`src/game/waveplan.js` and `src/game/rules.js`, shared with the game) to know how many creatures a run could have met by the wave it reports, the most those kills can score, and how soon that wave can be reached. Pickup weapons can take at most 40% of a leviathan's health (`bossSpecialCap`), so a boss wave's shortest time still has a floor. The game runs in the browser, so a determined cheat can still post a perfect-play score; if one does, delete their doc in `pilots/` from the Firebase console.
 
 **Abuse limits.** Each function instance rate-limits writes per IP (`api/_lib/limit.js`), but instances count separately. For a hard limit, add a Vercel Firewall rule: Project → Firewall → New rule → path starts with `/api/`, method POST, rate limit about 30 requests per minute per IP.
 
@@ -126,4 +127,4 @@ Use a **dedicated project on your personal Google account**. The deploy below re
 node scripts/shoot.mjs http://localhost:5173 shots
 ```
 
-Scenarios: `home`, `under`, `top`, `fly`, `grade`, `splash`, `reduced`, `mobile`, `text`, `debug` (`blue` and `red` still work as aliases). Pass names to run a subset. Rendering is software-only there, so the simulation runs slower than on a real GPU; the script waits for docking instead of fixed delays.
+Scenarios: `home` (the ride), `homesizes`, `deeplink`, `under`, `top`, `fly`, `grade`, `splash`, `reduced`, `mobile`, `text`, `debug` (`blue` and `red` still work as aliases). Pass names to run a subset. Rendering is software-only there, so the simulation runs slower than on a real GPU; the script waits for docking instead of fixed delays.

@@ -68,7 +68,8 @@ function useStarLayer({ count, period, zRange, sizeRange, brightness, twinkle, s
   return { geometry, material, uniforms }
 }
 
-export default function Starfield({ world, reduced = false }) {
+// air: the live sky colours (see air.js); the backdrop follows them when given.
+export default function Starfield({ world, reduced = false, air = null }) {
   const tc = new THREE.Color(world.starTint)
   const tint = [tc.r, tc.g, tc.b]
   const far = useStarLayer({
@@ -95,7 +96,6 @@ export default function Starfield({ world, reduced = false }) {
     () => ({
       uTime: { value: 0 },
       uOffset: { value: new THREE.Vector2() },
-      uTint: { value: color(world.accent2) },
       uSky0: { value: color(world.sky[0]) },
       uSky1: { value: color(world.sky[1]) },
       uSmog: { value: color(world.smog) },
@@ -114,6 +114,11 @@ export default function Starfield({ world, reduced = false }) {
     dust.uniforms.uCam.value.set(camera.position.x, camera.position.y)
     backdropU.uTime.value = t
     backdropU.uOffset.value.set(camera.position.x * 0.00012, camera.position.y * 0.00012)
+    if (air) {
+      backdropU.uSky0.value.copy(air.sky0)
+      backdropU.uSky1.value.copy(air.sky1)
+      backdropU.uSmog.value.copy(air.smog)
+    }
     if (backdropRef.current) backdropRef.current.position.set(camera.position.x, camera.position.y, -650)
   })
 

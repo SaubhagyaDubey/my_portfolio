@@ -68,7 +68,7 @@ export default function Nebula({ stop, world }) {
     return Array.from({ length: 6 }, () => ({
       p: [(rand() - 0.5) * r * 1.3, (rand() - 0.5) * r * 0.9, -2 + rand() * 4],
       s: 0.12 + rand() * 0.16,
-      c: rand() > 0.5 ? '#fff6e8' : world.glow,
+      c: rand() > 0.5 ? '#f4f8ff' : world.glow,
     }))
   }, [r, world.glow])
   return (

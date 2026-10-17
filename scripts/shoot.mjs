@@ -159,16 +159,53 @@ async function drag(cdp, from, to, ms = 1200) {
 }
 
 const scenarios = {
+  // the home page's ride: ready, holding space, in flight, every stop's card, the fork, a side lit, then into it
   async home(cdp) {
+    // read through J; assign through W (an optional chain can't be assigned to)
+    const J = 'window.__journey?.current'
+    const W = 'window.__journey.current'
+    await cdp.send('Page.navigate', { url: `${base}/?journey=1` })
+    await waitFor(cdp, J, 10000)
+    await sleep(2500)
+    await shot(cdp, 'home-ready')
+    await evaluate(cdp, `${W}.holding = true`)
+    await waitFor(cdp, `${J}.charge > 0.55`, 10000)
+    await shot(cdp, 'home-charge')
+    await waitFor(cdp, `${J}.phase === 'fly' && ${J}.u > 0.35`, 20000)
+    await evaluate(cdp, `${W}.holding = false`)
+    await shot(cdp, 'home-fly')
+    for (let i = 0; i < 4; i++) {
+      await waitFor(cdp, `${J}.phase === 'dwell' && ${J}.i === ${i}`, 40000)
+      await sleep(1600)
+      await shot(cdp, `home-stop-${i}`)
+      const fit = await evaluate(cdp, `(() => { const t = document.querySelector('.journey-card[data-on="true"] .journey-card__title'); if (!t) return null; const g = document.createRange(); g.selectNodeContents(t); const r = g.getBoundingClientRect(); const b = t.getBoundingClientRect(); return { fs: parseFloat(t.style.fontSize), lines: Math.round(r.height / (parseFloat(t.style.fontSize) * 0.86)), spill: Math.round(Math.max(r.right - b.right, b.left - r.left)) } })()`)
+      console.log(`  stop ${i}: ${JSON.stringify(fit)}`)
+      await click(cdp, '.journey-hud__next')
+    }
+    await waitFor(cdp, `${J}.phase === 'fork'`, 40000)
+    await sleep(1800)
+    await shot(cdp, 'home-fork')
+    await hover(cdp, '.journey-choice--top .journey-choice__title')
+    await sleep(1500)
+    await shot(cdp, 'home-fork-top')
+    await click(cdp, '.journey-choice--top')
+    await waitFor(cdp, `${J}?.t > 0.5`, 10000)
+    await shot(cdp, 'home-leave')
+    await waitFor(cdp, `location.pathname === '/top'`, 15000)
+    console.log('  path after the fork:', await evaluate(cdp, 'location.pathname'))
     await cdp.send('Page.navigate', { url: `${base}/` })
-    await sleep(3500)
-    await shot(cdp, 'home')
-    await hover(cdp, '.galaxy--under')
-    await sleep(1600)
-    await shot(cdp, 'home-hover-under')
-    await hover(cdp, '.galaxy--top')
-    await sleep(1600)
-    await shot(cdp, 'home-hover-top')
+    await sleep(2500)
+    console.log('  second visit opens at:', await evaluate(cdp, `${J}?.phase`))
+  },
+  // a preview link: lands docked at that stop, with ?stop dropped and ?fx kept
+  async deeplink(cdp) {
+    for (const [path, id] of [['/top?stop=tide&fx=1', 'tide'], ['/under?stop=geo', 'geo']]) {
+      await cdp.send('Page.navigate', { url: `${base}${path}` })
+      await waitFor(cdp, `window.__deepfield?.useStore.getState().docked === ${JSON.stringify(id)}`, 40000)
+      await sleep(900)
+      await shot(cdp, `deeplink-${id}`)
+      console.log(`  ${path} → ${await evaluate(cdp, 'location.pathname + location.search')}, docked ${await evaluate(cdp, 'window.__deepfield?.useStore.getState().docked')}`)
+    }
   },
   async under(cdp) {
     await cdp.send('Page.navigate', { url: `${base}/under` })
@@ -218,10 +255,10 @@ const scenarios = {
     }
   },
   async splash(cdp) {
-    await cdp.send('Page.navigate', { url: `${base}/` })
+    await cdp.send('Page.navigate', { url: `${base}/?journey=0` })
     await sleep(3000)
-    await click(cdp, '.galaxy--top')
-    await sleep(1150)
+    await click(cdp, '.journey-choice--top')
+    await waitFor(cdp, `document.querySelector('.splash')?.dataset.phase === 'in'`, 15000)
     await shot(cdp, 'splash-mid')
     await sleep(2500)
     await shot(cdp, 'splash-after')
@@ -232,6 +269,15 @@ const scenarios = {
   },
   async reduced(cdp) {
     await cdp.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] })
+    // the ride cuts from stop to stop and never moves on by itself
+    await cdp.send('Page.navigate', { url: `${base}/?journey=1` })
+    await sleep(3000)
+    await click(cdp, '.journey-ignite')
+    await sleep(2500)
+    console.log('  reduced, after take-off:', await evaluate(cdp, 'JSON.stringify({ phase: window.__journey.current.phase, i: window.__journey.current.i })'))
+    await sleep(6000)
+    console.log('  reduced, 6 s later:', await evaluate(cdp, 'JSON.stringify({ phase: window.__journey.current.phase, i: window.__journey.current.i })'))
+    await shot(cdp, 'reduced-home-stop')
     await cdp.send('Page.navigate', { url: `${base}/under` })
     await sleep(3500)
     await flyAndWait(cdp, 'delhi', 'delhi')
@@ -323,14 +369,69 @@ const scenarios = {
   async mobile(cdp) {
     await cdp.send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 2, mobile: true })
     await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: true })
-    await cdp.send('Page.navigate', { url: `${base}/` })
+    await cdp.send('Page.navigate', { url: `${base}/?journey=1` })
     await sleep(3000)
     await shot(cdp, 'm-home')
+    await click(cdp, '.journey-ignite')
+    await waitFor(cdp, `window.__journey.current.phase === 'dwell'`, 40000)
+    await sleep(1600)
+    await shot(cdp, 'm-home-stop')
+    await cdp.send('Page.navigate', { url: `${base}/?journey=0` })
+    await sleep(3000)
+    await shot(cdp, 'm-home-fork')
     await cdp.send('Page.navigate', { url: `${base}/top` })
     await sleep(4500)
     await shot(cdp, 'm-top')
     await flyAndWait(cdp, 'unthinkable', 'unthinkable')
     await shot(cdp, 'm-top-story')
+  },
+  // the first card and the fork at the sizes the layout changes at: big desktop, short laptop, narrow desktop, phones
+  async homesizes(cdp) {
+    for (const [w, h] of [[1920, 1080], [1280, 720], [1024, 768], [390, 844], [375, 667]]) {
+      const phone = w <= 720
+      await cdp.send('Emulation.setDeviceMetricsOverride', { width: w, height: h, deviceScaleFactor: phone ? 2 : 1, mobile: phone })
+      await cdp.send('Page.navigate', { url: `${base}/?journey=1` })
+      await waitFor(cdp, 'window.__journey?.current', 10000)
+      await sleep(1500)
+      await evaluate(cdp, 'window.__journey.current.tap = true; window.__journey.current.rush = true')
+      await waitFor(cdp, `window.__journey.current.phase === 'dwell'`, 40000)
+      await sleep(1500)
+      await shot(cdp, `home-${w}x${h}-card`)
+      await cdp.send('Page.navigate', { url: `${base}/?journey=0` })
+      await sleep(3000)
+      const m = await evaluate(
+        cdp,
+        `(() => { const r = (s) => { const e = document.querySelector(s); if (!e) return null; const b = e.getBoundingClientRect(); return [Math.round(b.left), Math.round(b.top), Math.round(b.right), Math.round(b.bottom)] }; return JSON.stringify({ under: r('.journey-choice--under .journey-choice__title'), top: r('.journey-choice--top .journey-choice__title'), play: r('.journey-slab'), foot: r('.journey-fork__foot'), page: document.documentElement.scrollWidth }) })()`,
+      )
+      console.log(`  ${w}x${h} ${m}`)
+      await shot(cdp, `home-${w}x${h}-fork`)
+    }
+  },
+  // every stop's poster title, docked directly (no flight), on desktop and phone; logs any title wider than its column
+  async posters(cdp) {
+    for (const [w, h, tag] of [[1440, 900, 'd'], [390, 844, 'm']]) {
+      await cdp.send('Emulation.setDeviceMetricsOverride', { width: w, height: h, deviceScaleFactor: tag === 'm' ? 2 : 1, mobile: tag === 'm' })
+      for (const city of ['under', 'top']) {
+        await cdp.send('Page.navigate', { url: `${base}/${city}?fx=0` })
+        await waitFor(cdp, 'window.__deepfield?.useStore.getState().worldKey', 20000)
+        await sleep(1500)
+        const ids = await evaluate(cdp, 'window.__deepfield.world.stops.map((s) => s.id)')
+        for (const [i, id] of ids.entries()) {
+          // park the ship beside the stop first, or the sim undocks it on the next frame
+          await evaluate(
+            cdp,
+            `(() => { const { sim, useStore, world } = window.__deepfield; const s = world.stops.find((s) => s.id === ${JSON.stringify(id)}); Object.assign(sim, { autopilot: null, leftId: null, x: s.pos[0], y: s.pos[1] - s.r - 4, vx: 0, vy: 0 }); const st = useStore.getState(); st.undock(); st.dock(s.id) })()`,
+          )
+          await sleep(1200)
+          const m = await evaluate(
+            cdp,
+            `(() => { const t = document.querySelector('.poster__title'); const b = document.querySelector('.poster'); if (!t) return null; const g = document.createRange(); g.selectNodeContents(t); const r = g.getBoundingClientRect(); const s = document.querySelector('.story')?.getBoundingClientRect(); return { fs: parseFloat(t.style.fontSize), over: t.scrollWidth - t.clientWidth, ink: Math.round(r.right - t.getBoundingClientRect().right), h: Math.round(r.height), box: b.clientHeight, hitsPanel: s ? r.right > s.left && r.bottom > s.top && r.top < s.bottom : false } })()`,
+          )
+          console.log(`  ${tag} ${city} ${id}: ${JSON.stringify(m)}`)
+          await shot(cdp, `poster-${tag}-${city}-${i}`)
+        }
+      }
+    }
   },
 }
 

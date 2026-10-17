@@ -9,7 +9,7 @@ import { callsignFrom, cleanCallsign } from '../api/_lib/pilot.js'
 import { issueRun, readRun, sign, verify } from '../api/_lib/sign.js'
 import { useStore } from '../api/_lib/store.js'
 import { checkRun, maxKills, maxScore, minSeconds } from '../api/_lib/validate.js'
-import { BOSS_EVERY, multiplier, SCORES } from '../src/game/rules.js'
+import { BETWEEN_WAVES, BOSS_DYING, BOSS_EVERY, MAX_HITS_PER_SECOND, bossHp, bossSpecialCap, multiplier, SCORES } from '../src/game/rules.js'
 import { buildWave } from '../src/game/waveplan.js'
 
 const ORIGIN = 'http://localhost:5173'
@@ -99,6 +99,15 @@ describe('run checks', () => {
     const seconds = minSeconds(BOSS_EVERY) + 60
     assert.equal(checkRun({ score: SCORES.boss * 8, wave: BOSS_EVERY, kills: 0 }, run, at(seconds)).ok, true)
     assert.ok(maxKills(BOSS_EVERY, seconds + 75) > maxKills(BOSS_EVERY, seconds)) // called darts add up over time
+  })
+
+  test('a leviathan can fall as fast as pickup weapons allow, and no faster', () => {
+    // a boss wave lasts from the boss arriving until it dies; pickups can take only their capped share
+    const w = BOSS_EVERY
+    const cannonOnly = (bossHp(w) - bossSpecialCap(w)) / MAX_HITS_PER_SECOND
+    const span = (minSeconds(w + 1) - minSeconds(w)) / 0.9 // undo the wall-clock slack
+    assert.ok(bossSpecialCap(w) > 0 && bossSpecialCap(w) < bossHp(w))
+    assert.ok(Math.abs(span - (buildWave(w)[0].t + cannonOnly + BOSS_DYING + BETWEEN_WAVES)) < 1e-9)
   })
 
   test('rejects runs the game cannot produce', () => {

@@ -3,8 +3,10 @@ import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { SHIP_EYE, SHIP_MUZZLES } from '../three/ShipModel.jsx'
 import { BOSS, SPECIES } from './creatures.js'
+import { laneFor, pal, setLane, stepLane } from './lanes.js'
+import { LANCE, MAX_HELD, NOVA, SPECIALS, SWARM } from './specials.js'
 import { AIM_Z, BOSS_SEGMENTS, BOX, HULL_MAX, PASS_Z, RAIL, ROLL_TIME, SEG_GAP, SHIP_S, SPAWN_Z, burst, firstFree, game, saveBest, segmentPos, useGame } from './state.js'
-import { BETWEEN_WAVES, BOSS_CALL, BOSS_COMBO, BOSS_DYING, FIRE_CD, SPLITTER_CHILDREN, TWIN_FIRE_CD, bossHp, multiplier } from './rules.js'
+import { BETWEEN_WAVES, BOSS_CALL, BOSS_COMBO, BOSS_DYING, FIRE_CD, SPLITTER_CHILDREN, TWIN_FIRE_CD, bossHp, bossSpecialCap, multiplier } from './rules.js'
 import { BOSS_EVERY, buildWave, waveLabel } from './waves.js'
 
 const PLAYER_R = 1.0
@@ -16,11 +18,18 @@ const KEY_SPEED = 26
 const HOLD_Z = -72
 const BOSS_Z = -68
 const TRAIL_STEP = 0.045 // seconds between boss path samples
+const SUPPLY_Z = -150 // a cleared wave's drop appears this far down the lane, so it arrives in the gap
+const SPECIAL_CD = 0.35
+const TOAST_TIME = 2.2
+
+// the lane's live colours as hex, for bursts
+const hot = () => pal.accent2.getHex()
+const glow = () => pal.glow.getHex()
 
 const look = new THREE.Vector3()
 
 // One frame of the whole game: input, ship, waves, creatures, shots, hits, camera. Nothing here re-renders.
-export default function GameLoop({ city }) {
+export default function GameLoop() {
   const { camera } = useThree()
 
   useEffect(() => {
@@ -34,10 +43,11 @@ export default function GameLoop({ city }) {
     const hud = useGame.getState()
     const p = game.player
     if (hud.phase === 'paused') return
+    stepLane(dt)
     game.boost += ((p.rollT > 0 ? 1 : 0) - game.boost) * Math.min(1, dt * 6)
     game.speed = RAIL * (game.reduced ? 0.75 : 1) * (1 + game.boost * 0.6)
 
-    if (hud.phase === 'playing') step(dt, city)
+    if (hud.phase === 'playing') step(dt)
     else if (hud.phase === 'title') idle(state.clock.elapsedTime, dt)
     updateCamera(camera, dt, hud.cam)
     if (hud.phase === 'playing') syncHud(hud)
@@ -60,7 +70,7 @@ function idle(t, dt) {
 }
 
 // ---------------------------------------------------------------- the game proper
-function step(dt, city) {
+function step(dt) {
   const p = game.player
   const inp = game.input
   game.t += dt
@@ -99,9 +109,15 @@ function step(dt, city) {
   p.inv -= dt
   p.twin -= dt
 
-  // ---- cannons
+  // ---- cannons, and whatever is first on the rack
   p.fireCd -= dt
   if (inp.fire && p.alive && p.fireCd <= 0) fire(p)
+  // a press waits out the short cooldown, or a lance still burning when the next one up is a lance
+  game.specialCd -= dt
+  if (inp.special && game.specialCd <= 0 && !(game.held[0] === 'lance' && game.lance.t > 0)) {
+    inp.special = false
+    fireSpecial(p)
+  }
 
   // ---- waves (frozen while the ship explodes, so the wave you died in is the wave reported)
   if (p.alive) {
@@ -111,8 +127,12 @@ function step(dt, city) {
     } else {
       while (game.queue.length && game.queue[0].t <= game.waveT) spawn(game.queue.shift())
       if (!game.queue.length && !game.boss.on && !game.creatures.some((c) => c.on)) {
+        // a new lane fades in over the gap, and a supply drop comes down it
+        const next = laneFor(game.wave + 1, game.city)
         game.between = BETWEEN_WAVES
-        announce(`wave ${game.wave} clear`, game.wave % BOSS_EVERY === 0 ? 'the lane is quiet for a second' : 'next one is coming')
+        setLane(next)
+        supplyDrop()
+        announce(`wave ${game.wave} clear`, `${game.wave % BOSS_EVERY === 0 ? 'the lane is quiet for a second. ' : ''}next: ${next.name}. grab the drop.`)
       }
     }
   }
@@ -120,12 +140,20 @@ function step(dt, city) {
     game.bannerT -= dt
     if (game.bannerT <= 0) useGame.getState().set({ banner: null })
   }
+  if (game.toastT > 0) {
+    game.toastT -= dt
+    if (game.toastT <= 0) useGame.getState().set({ toast: null })
+  }
+  game.shieldPop = Math.max(0, game.shieldPop - dt)
 
-  updateCreatures(dt, city)
-  updateBoss(dt, city)
-  updateShots(dt, city)
-  updateOrbs(dt, city)
-  updatePickups(dt, city)
+  updateCreatures(dt)
+  updateBoss(dt)
+  updateShots(dt)
+  updateOrbs(dt)
+  updatePickups(dt)
+  updateNova(dt)
+  updateLance(dt)
+  updateMissiles(dt)
 
   game.comboT -= dt
   if (game.comboT <= 0) game.combo = 0
@@ -217,7 +245,7 @@ function spawn(ev) {
 function spawnBoss() {
   const b = game.boss
   const hp = bossHp(game.wave)
-  Object.assign(b, { on: true, x: 0, y: 0, z: -460, hp, max: hp, t: 0, fireCd: 3, callCd: BOSS_CALL.first, flash: 0, dying: 0, trailT: 0 })
+  Object.assign(b, { on: true, x: 0, y: 0, z: -460, hp, max: hp, t: 0, fireCd: 3, callCd: BOSS_CALL.first, flash: 0, dying: 0, specialLeft: bossSpecialCap(game.wave), trailT: 0 })
   b.trail.length = 0
   for (let i = 0; i < BOSS_SEGMENTS * SEG_GAP + 2; i++) b.trail.push({ x: 0, y: 0, z: -460 })
   announce('leviathan', 'shoot the head. the body just soaks it up.')
@@ -234,7 +262,7 @@ function fireOrb(x, y, z, tx, ty) {
 }
 
 // ---------------------------------------------------------------- creatures
-function updateCreatures(dt, city) {
+function updateCreatures(dt) {
   const p = game.player
   const sp = game.speed
   for (const c of game.creatures) {
@@ -306,27 +334,27 @@ function updateCreatures(dt, city) {
     }
     // body hits the ship
     if (p.alive && Math.abs(c.z) < c.r + PLAYER_R && Math.hypot(c.x - p.x, c.y - p.y) < c.r + PLAYER_R) {
-      if (hitPlayer(city)) {
+      if (hitPlayer()) {
         c.on = false
-        burst(c.x, c.y, c.z, enemyGlow(c.kind, city), 30, 14)
+        burst(c.x, c.y, c.z, enemyGlow(c.kind), 30, 14)
       }
     }
   }
 }
 
-function enemyGlow(kind, city) {
+function enemyGlow(kind) {
   const core = SPECIES[kind]?.core ?? 'enemy'
-  return core === 'enemy' ? city.accent2 : core
+  return core === 'enemy' ? hot() : core
 }
 
-function kill(c, city) {
+function kill(c) {
   const sp = SPECIES[c.kind]
   c.on = false
   game.combo += 1
   game.comboT = 2.6
   game.kills += 1
   game.score += sp.score * multiplier(game.combo)
-  burst(c.x, c.y, c.z, enemyGlow(c.kind, city), c.kind === 'splitter' ? 46 : 30, c.kind === 'splitter' ? 20 : 14, c.kind === 'splitter' ? 1.6 : 1.2)
+  burst(c.x, c.y, c.z, enemyGlow(c.kind), c.kind === 'splitter' ? 46 : 30, c.kind === 'splitter' ? 20 : 14, c.kind === 'splitter' ? 1.6 : 1.2)
   if (c.kind === 'splitter') {
     for (let i = 0; i < SPLITTER_CHILDREN; i++) {
       const a = (i / SPLITTER_CHILDREN) * Math.PI * 2 + Math.random()
@@ -334,13 +362,13 @@ function kill(c, city) {
     }
   }
   if (Math.random() < DROP) {
-    const pk = firstFree(game.pickups)
-    if (pk) Object.assign(pk, { on: true, kind: game.hull < HULL_MAX && Math.random() < 0.55 ? 'repair' : 'twin', x: c.x, y: c.y, z: c.z, t: 0 })
+    const kind = rollDrop(false)
+    if (kind) dropPickup(kind, c.x, c.y, c.z)
   }
 }
 
 // ---------------------------------------------------------------- boss
-function updateBoss(dt, city) {
+function updateBoss(dt) {
   const b = game.boss
   if (!b.on) return
   const p = game.player
@@ -359,11 +387,11 @@ function updateBoss(dt, city) {
     b.dying -= dt
     if (Math.random() < dt * 14) {
       const s = segmentPos(Math.floor(Math.random() * BOSS_SEGMENTS))
-      burst(s.x + (Math.random() - 0.5) * 3, s.y + (Math.random() - 0.5) * 3, s.z, Math.random() < 0.5 ? city.accent2 : '#fff3dc', 34, 18, 1.8)
+      burst(s.x + (Math.random() - 0.5) * 3, s.y + (Math.random() - 0.5) * 3, s.z, Math.random() < 0.5 ? hot() : '#f3f7ff', 34, 18, 1.8)
     }
     if (b.dying <= 0) {
       b.on = false
-      burst(b.x, b.y, b.z, '#fff3dc', 80, 30, 2.4)
+      burst(b.x, b.y, b.z, '#f3f7ff', 80, 30, 2.4)
       useGame.getState().set({ boss: null })
     }
     return
@@ -383,9 +411,18 @@ function updateBoss(dt, city) {
   }
 }
 
-function damageBoss(city) {
+// `special` hits come from pickup weapons and stop landing once they've taken the boss's capped share
+function damageBoss(n = 1, special = false) {
   const b = game.boss
-  b.hp -= 1
+  if (special) {
+    n = Math.min(n, b.specialLeft)
+    b.specialLeft -= n
+    if (n <= 0) {
+      burst(b.x, b.y, b.z + BOSS.r, '#9aa3ae', 6, 6, 0.7) // it shrugs the rest off
+      return
+    }
+  }
+  b.hp -= n
   b.flash = 1
   if (b.hp <= 0 && b.dying <= 0) {
     b.dying = BOSS_DYING
@@ -393,13 +430,13 @@ function damageBoss(city) {
     game.comboT = 4
     game.score += BOSS.score * multiplier(game.combo)
     for (const o of game.orbs) o.on = false // the lane clears when it goes down
-    burst(b.x, b.y, b.z, city.accent2, 60, 26, 2)
+    burst(b.x, b.y, b.z, hot(), 60, 26, 2)
   }
   useGame.getState().set({ boss: Math.max(0, b.hp / b.max) })
 }
 
 // ---------------------------------------------------------------- shots, orbs, pickups
-function updateShots(dt, city) {
+function updateShots(dt) {
   const b = game.boss
   for (const s of game.shots) {
     if (!s.on) continue
@@ -419,15 +456,15 @@ function updateShots(dt, city) {
       s.on = false
       c.hp -= 1
       c.flash = 1
-      if (c.hp <= 0) kill(c, city)
-      else burst(s.x, s.y, c.z + c.r, '#fff3dc', 6, 6, 0.6)
+      if (c.hp <= 0) kill(c)
+      else burst(s.x, s.y, c.z + c.r, '#f3f7ff', 6, 6, 0.6)
       break
     }
     if (!s.on || !b.on || b.dying > 0) continue
     if (b.z >= s.z - BOSS.r && b.z <= pz + BOSS.r && Math.hypot(b.x - s.x, b.y - s.y) < BOSS.r + 0.4) {
       s.on = false
-      damageBoss(city)
-      burst(s.x, s.y, b.z + BOSS.r, city.accent2, 5, 7, 0.7)
+      damageBoss()
+      burst(s.x, s.y, b.z + BOSS.r, hot(), 5, 7, 0.7)
       continue
     }
     for (let i = 0; i < BOSS_SEGMENTS; i++) {
@@ -435,13 +472,13 @@ function updateShots(dt, city) {
       if (sg.z < s.z - BOSS.segR || sg.z > pz + BOSS.segR) continue
       if (Math.hypot(sg.x - s.x, sg.y - s.y) > BOSS.segR * (1 - i * 0.025) + 0.3) continue
       s.on = false
-      burst(s.x, s.y, sg.z + BOSS.segR, '#a89a8a', 4, 5, 0.5)
+      burst(s.x, s.y, sg.z + BOSS.segR, '#9aa3ae', 4, 5, 0.5)
       break
     }
   }
 }
 
-function updateOrbs(dt, city) {
+function updateOrbs(dt) {
   const p = game.player
   for (const o of game.orbs) {
     if (!o.on) continue
@@ -454,12 +491,12 @@ function updateOrbs(dt, city) {
       continue
     }
     if (p.alive && Math.abs(o.z) < 1.2 && Math.hypot(o.x - p.x, o.y - p.y) < PLAYER_R + 0.45) {
-      if (hitPlayer(city)) o.on = false
+      if (hitPlayer()) o.on = false
     }
   }
 }
 
-function updatePickups(dt, city) {
+function updatePickups(dt) {
   const p = game.player
   for (const k of game.pickups) {
     if (!k.on) continue
@@ -476,20 +513,253 @@ function updatePickups(dt, city) {
     }
     if (p.alive && Math.abs(k.z) < 2 && Math.hypot(k.x - p.x, k.y - p.y) < 2.8) {
       k.on = false
-      if (k.kind === 'repair') {
-        game.hull = Math.min(HULL_MAX, game.hull + 1)
-        burst(p.x, p.y, 0, '#5cff8a', 24, 8, 0.9)
-      } else {
-        p.twin = 10
-        burst(p.x, p.y, 0, city.glow, 24, 8, 0.9)
-      }
+      collect(k.kind)
     }
   }
 }
 
-function hitPlayer(city) {
+function collect(kind) {
+  const p = game.player
+  const sp = SPECIALS[kind]
+  if (kind === 'repair') {
+    game.hull = Math.min(HULL_MAX, game.hull + 1)
+    burst(p.x, p.y, 0, '#5cff8a', 24, 8, 0.9)
+    return
+  }
+  if (kind === 'twin') {
+    p.twin = 10
+    burst(p.x, p.y, 0, glow(), 24, 8, 0.9)
+    return
+  }
+  if (sp.type === 'weapon') {
+    if (game.held.length >= MAX_HELD) return toast(kind, true)
+    game.held.push(kind)
+  } else if (kind === 'shield') p.shield = 1
+  else p.wind = 1
+  burst(p.x, p.y, 0, sp.color, 30, 9, 1)
+  toast(kind)
+}
+
+function toast(kind, full = false) {
+  game.toastT = TOAST_TIME
+  useGame.getState().set({ toast: { kind, full, key: `${kind}-${game.t.toFixed(2)}` } })
+}
+
+// What a kill (or a cleared wave's supply drop) leaves behind. Nothing you couldn't use: no repair at full
+// hull, no second shield, no weapon when the rack is full. Supply drops are always a weapon or an upgrade.
+function rollDrop(supply) {
+  const p = game.player
+  const room = game.held.length < MAX_HELD
+  const table = [
+    ['repair', game.hull < HULL_MAX ? (supply ? 1 : 3) : 0],
+    ['twin', supply ? 0 : 3],
+    ['nova', room ? 1 : 0],
+    ['lance', room ? 1 : 0],
+    ['swarm', room ? 1.2 : 0],
+    ['shield', p.shield ? 0 : 1.2],
+    ['wind', p.wind ? 0 : 0.5],
+  ]
+  let r = Math.random() * table.reduce((n, [, w]) => n + w, 0)
+  for (const [kind, w] of table) {
+    if (w > 0 && (r -= w) < 0) return kind
+  }
+  return null
+}
+
+function dropPickup(kind, x, y, z, big = false) {
+  const pk = firstFree(game.pickups)
+  if (pk) Object.assign(pk, { on: true, kind, x, y, z, t: 0, big })
+}
+
+function supplyDrop() {
+  const kind = rollDrop(true)
+  if (kind) dropPickup(kind, (Math.random() * 2 - 1) * BOX.x * 0.5, (Math.random() * 2 - 1) * BOX.y * 0.5, SUPPLY_Z, true)
+}
+
+// ---------------------------------------------------------------- pickup weapons
+function fireSpecial(p) {
+  const kind = game.held[0]
+  if (!kind || !p.alive) return
+  game.held.shift()
+  game.specialCd = SPECIAL_CD
+  if (kind === 'nova') startNova(p)
+  else if (kind === 'lance') startLance(p)
+  else startSwarm(p)
+}
+
+// Nova: every enemy shot goes at once, then a ring runs down the lane and takes everything it passes.
+function startNova(p) {
+  Object.assign(game.nova, { t: 0, x: p.x, y: p.y, z: 0, hitBoss: false })
+  for (const o of game.orbs) o.on = false
+  game.shake = game.reduced ? 0 : 0.7
+  burst(p.x, p.y, -14, SPECIALS.nova.color, 50, 22, 1.2)
+  const st = useGame.getState()
+  st.set({ flash: st.flash + 1 })
+}
+
+function updateNova(dt) {
+  const n = game.nova
+  if (n.t < 0) return
+  n.t += dt
+  n.z = -n.t * NOVA.speed
+  for (const c of game.creatures) if (c.on && c.z > n.z) kill(c)
+  const b = game.boss
+  if (b.on && b.dying <= 0 && !n.hitBoss && b.z > n.z) {
+    n.hitBoss = true
+    damageBoss(NOVA.boss, true)
+  }
+  if (n.z < SPAWN_Z - 40) n.t = -1
+}
+
+// Lance: a beam straight down the lane from the nose, wherever the ship goes, for LANCE.time.
+function startLance(p) {
+  Object.assign(game.lance, { t: LANCE.time, tick: 0 })
+  burst(p.x, p.y, -8, SPECIALS.lance.color, 24, 10, 0.8)
+}
+
+function updateLance(dt) {
+  const l = game.lance
+  if (l.t <= 0) return
+  const p = game.player
+  if (!p.alive) {
+    l.t = 0
+    return
+  }
+  l.t -= dt
+  for (const o of game.orbs) {
+    if (o.on && o.z < 0 && Math.hypot(o.x - p.x, o.y - p.y) < LANCE.r + 0.5) {
+      o.on = false
+      burst(o.x, o.y, Math.min(o.z, -6), SPECIALS.lance.color, 4, 5, 0.45)
+    }
+  }
+  l.tick -= dt
+  if (l.tick > 0) return
+  l.tick += LANCE.tick
+  for (const c of game.creatures) {
+    if (!c.on || c.z > 1 || c.z < -LANCE.len || Math.hypot(c.x - p.x, c.y - p.y) > c.r + LANCE.r) continue
+    c.hp -= LANCE.damage
+    c.flash = 1
+    if (c.hp <= 0) kill(c)
+    else burst(c.x, c.y, c.z + c.r, SPECIALS.lance.color, 5, 6, 0.6)
+  }
+  const b = game.boss
+  if (b.on && b.dying <= 0 && b.z > -LANCE.len && Math.hypot(b.x - p.x, b.y - p.y) < BOSS.r + LANCE.r) {
+    damageBoss(LANCE.boss, true)
+    burst(b.x, b.y, b.z + BOSS.r, SPECIALS.lance.color, 6, 8, 0.8)
+  }
+}
+
+// Swarm: seekers fan out of both wingtips and home in, nearest threats first.
+function startSwarm(p) {
+  const near = game.creatures.filter((c) => c.on && c.z < 0).sort((a, b) => b.z - a.z)
+  const b = game.boss
+  for (let i = 0; i < SWARM.n; i++) {
+    const m = firstFree(game.missiles)
+    if (!m) break
+    toWorld(SHIP_MUZZLES[i % 2], p.bank, mz)
+    const out = Math.sign(mz.x - p.x) || 1
+    Object.assign(m, {
+      on: true,
+      x: mz.x,
+      y: mz.y,
+      z: mz.z,
+      vx: out * (10 + Math.random() * 30),
+      vy: (Math.random() - 0.3) * 30,
+      vz: -40 - Math.random() * 30,
+      life: SWARM.life,
+      target: near.length ? near[i % near.length] : b.on && b.dying <= 0 ? b : null,
+      spark: Math.random() * 0.04,
+    })
+  }
+  burst(p.x, p.y, -1, SPECIALS.swarm.color, 24, 10, 0.9)
+}
+
+const alive = (t) => t && t.on && !(t === game.boss && t.dying > 0)
+
+function nearestTarget(m) {
+  let best = null
+  let bd = Infinity
+  for (const c of game.creatures) {
+    if (!c.on || c.z > m.z + 8) continue
+    const d = Math.hypot(c.x - m.x, c.y - m.y, (c.z - m.z) * 0.5)
+    if (d < bd) {
+      bd = d
+      best = c
+    }
+  }
+  return best ?? (alive(game.boss) ? game.boss : null)
+}
+
+// closest distance from point c to the segment a→b
+function segDist(ax, ay, az, bx, by, bz, cx, cy, cz) {
+  const dx = bx - ax
+  const dy = by - ay
+  const dz = bz - az
+  const t = THREE.MathUtils.clamp(((cx - ax) * dx + (cy - ay) * dy + (cz - az) * dz) / (dx * dx + dy * dy + dz * dz || 1e-6), 0, 1)
+  return Math.hypot(ax + dx * t - cx, ay + dy * t - cy, az + dz * t - cz)
+}
+
+function updateMissiles(dt) {
+  const b = game.boss
+  const f = Math.min(1, SWARM.turn * dt)
+  for (const m of game.missiles) {
+    if (!m.on) continue
+    m.life -= dt
+    if (m.life <= 0 || m.z > PASS_Z) {
+      m.on = false
+      burst(m.x, m.y, m.z, SPECIALS.swarm.color, 8, 6, 0.6)
+      continue
+    }
+    if (!alive(m.target)) m.target = nearestTarget(m)
+    const t = m.target
+    const dx = t ? t.x - m.x : 0
+    const dy = t ? t.y - m.y : 0
+    const dz = t ? t.z - m.z : -1
+    const l = Math.hypot(dx, dy, dz) || 1
+    m.vx += ((dx / l) * SWARM.speed - m.vx) * f
+    m.vy += ((dy / l) * SWARM.speed - m.vy) * f
+    m.vz += ((dz / l) * SWARM.speed - m.vz) * f
+    const px = m.x
+    const py = m.y
+    const pz = m.z
+    m.x += m.vx * dt
+    m.y += m.vy * dt
+    m.z += m.vz * dt
+    m.spark -= dt
+    if (m.spark <= 0) {
+      m.spark = 0.04
+      burst(m.x, m.y, m.z, SPECIALS.swarm.color, 1, 2, 0.55)
+    }
+    for (const c of game.creatures) {
+      if (!c.on || segDist(px, py, pz, m.x, m.y, m.z, c.x, c.y, c.z) > c.r + 0.5) continue
+      m.on = false
+      c.hp -= SWARM.damage
+      c.flash = 1
+      burst(m.x, m.y, m.z, SPECIALS.swarm.color, 14, 10, 0.8)
+      if (c.hp <= 0) kill(c)
+      break
+    }
+    if (m.on && alive(b) && segDist(px, py, pz, m.x, m.y, m.z, b.x, b.y, b.z) < BOSS.r) {
+      m.on = false
+      damageBoss(SWARM.boss, true)
+      burst(m.x, m.y, m.z, SPECIALS.swarm.color, 16, 10, 0.9)
+    }
+  }
+}
+
+// ---------------------------------------------------------------- the ship gets hit
+function hitPlayer() {
   const p = game.player
   if (!p.alive || p.inv > 0 || p.rollT > 0) return false
+  if (p.shield > 0) {
+    // the shield takes it: no hull lost, the streak survives
+    p.shield = 0
+    p.inv = 0.8
+    game.shieldPop = 0.4
+    game.shake = game.reduced ? 0 : 0.4
+    burst(p.x, p.y, 0, SPECIALS.shield.color, 40, 14, 1.2)
+    return true
+  }
   game.hull -= 1
   p.inv = 1.4
   game.shake = game.reduced ? 0 : 1
@@ -497,11 +767,19 @@ function hitPlayer(city) {
   burst(p.x, p.y, 0, '#ff5a4d', 30, 12, 1)
   const st = useGame.getState()
   st.set({ hit: st.hit + 1 })
-  if (game.hull <= 0) {
+  if (game.hull <= 0 && p.wind > 0) {
+    p.wind = 0
+    game.hull = 2
+    p.inv = 2.5
+    for (const o of game.orbs) o.on = false
+    burst(p.x, p.y, 0, SPECIALS.wind.color, 70, 20, 1.8)
+    announce('second wind', 'that was the spare. fly carefully.')
+  } else if (game.hull <= 0) {
     p.alive = false
     game.overT = 1.6
-    burst(p.x, p.y, 0, city.glow, 90, 24, 2.2)
-    burst(p.x, p.y, 0, '#fff3dc', 50, 12, 1.6)
+    game.lance.t = 0
+    burst(p.x, p.y, 0, glow(), 90, 24, 2.2)
+    burst(p.x, p.y, 0, '#f3f7ff', 50, 12, 1.6)
   }
   return true
 }
@@ -548,12 +826,17 @@ function updateCamera(camera, dt, mode) {
 // ---------------------------------------------------------------- HUD
 function syncHud(hud) {
   const mult = multiplier(game.combo)
-  const twin = game.player.twin > 0
+  const p = game.player
+  const twin = p.twin > 0
+  const held = game.held.join(' ')
   const patch = {}
   if (hud.score !== game.score) patch.score = game.score
   if (hud.hull !== game.hull) patch.hull = game.hull
   if (hud.wave !== game.wave && game.wave > 0) patch.wave = game.wave
   if (hud.mult !== mult) patch.mult = mult
   if (hud.twin !== twin) patch.twin = twin
+  if (hud.held !== held) patch.held = held
+  if (hud.shield !== p.shield > 0) patch.shield = p.shield > 0
+  if (hud.wind !== p.wind > 0) patch.wind = p.wind > 0
   if (Object.keys(patch).length) hud.set(patch)
 }

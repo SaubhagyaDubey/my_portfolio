@@ -137,7 +137,7 @@ Decisions taken with Saubhagya:
 | Question | Decision |
 |---|---|
 | Scope | Full restyle: painterly post stack, painted object shaders, every UI surface, title-card launch, paint-splash transitions. Stops, copy, flight model, flags and route stay. |
-| Cities | me = the undercity (Zaun: chem green, rust, shimmer pink) at `/under`; work = topside (Piltover: brass, cream, hextech blue) at `/top`. Old routes redirect. |
+| Cities | me = the undercity (Zaun: chem green, gunmetal, shimmer pink) at `/under`; work = topside (Piltover: steel, blue-white, hextech blue) at `/top`. Old routes redirect. |
 | Type | Rozha One for display, Fraunces for reading, IBM Plex Mono for every label. |
 | Labels | "Grounded to reality": every flag carries a plain fact (company · role · dates · place). The poetic tag moved to the story header. |
 | Portraits | The 16 frames stay as placeholders, painted at load by a worker. Redraws can drop in with the same names. |
@@ -145,9 +145,11 @@ Decisions taken with Saubhagya:
 What shipped:
 
 - **Post stack**: Kuwahara brush with a world-glued flow field, brushed ink from depth and luminance, ACES + per-city split tone + paper + undercity halftone, edge chromatic aberration and grain on twos. Device tiers decide how much runs.
-- **Shaders**: three-band brushed light, hand-painted four-colour gradients, city-coloured rim light, FX on twos, painted nebula masses, faceted gem and chem-vent gates, toon metal, paint-dab stars, smog and brass-haze skies.
-- **UI**: torn-edge painted plates (brass with art-deco corners topside, rust with rivets below), engraved two-line flags, gem and vial route strips, pressed-metal buttons, a chapter-card launch with the two skies split by a torn seam that slides toward the hovered side.
+- **Shaders**: three-band brushed light, hand-painted four-colour gradients, city-coloured rim light, FX on twos, painted nebula masses, faceted gem and chem-vent gates, toon metal, paint-dab stars, smog and steel-haze skies that take on each planet's air when you dock.
+- **UI**: torn-edge painted plates (steel with art-deco corners topside, gunmetal with rivets below), engraved two-line flags, gem and vial route strips, pressed-metal buttons, a chapter-card launch with the two skies split by a torn seam that slides toward the hovered side.
 - **Transition**: a splat of the destination city's colour grows from the click, the scene changes under it, it fades.
+
+Clean frame and a new launch card (2026-10-17): Saubhagya asked for the grunge to go from the main site, as it had from the shooter, and found the launch card flat. The brush, paper, halftone, grain, paper tiles, torn plate edges and painted portraits are gone; ink, grade, bloom and lens stay, and plates have clean chamfers. The paint splat became a hex wipe. The launch card got a cursor-driven seam, crisper galaxies with a shape per city, a portrait that follows the pointer, the ship (it fires at the game and dives into the city you pick), each city's route as deep links (`?stop=`), ← → ↓ picks, and a two-second cold open once per session. The "post stack", "UI" and "transition" lines above describe the look before this change.
 
 Still wanted from Saubhagya:
 - 16 Arcane-style portrait redraws (1024² with alpha, chest-up, no die-cut border, same expression names).

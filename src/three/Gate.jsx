@@ -5,7 +5,7 @@ import { fxStep, toonRamp } from './toonRamp.js'
 import { color, useShaderMaterial } from './useShaderMaterial.js'
 
 // The door to the other city, drawn in that city's style: a hextech gem going up to topside,
-// a chem vent going down to the undercity. Framed by two slow rings of brass or rust.
+// a chem vent going down to the undercity. Framed by two slow rings of steel or gunmetal.
 export default function Gate({ stop, to, reduced }) {
   const { pos, r } = stop
   const tint = to.accent
@@ -21,7 +21,7 @@ export default function Gate({ stop, to, reduced }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [tint],
   )
-  const metal = gem ? '#c9973f' : '#7a4428'
+  const metal = gem ? '#b8c6d8' : '#4a515c'
   const material = useShaderMaterial(flatVert, gateFrag, uniforms, { transparent: true, depthWrite: false })
   const ringA = useRef()
   const ringB = useRef()

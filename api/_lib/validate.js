@@ -1,4 +1,4 @@
-import { BETWEEN_WAVES, BOSS_CALL, BOSS_COMBO, BOSS_DYING, BOSS_EVERY, FIRST_WAVE_DELAY, MAX_HITS_PER_SECOND, MAX_MULT, SCORES, SCORE_UNIT, SPLITTER_CHILDREN, bossHp, multiplier } from '../../src/game/rules.js'
+import { BETWEEN_WAVES, BOSS_CALL, BOSS_COMBO, BOSS_DYING, BOSS_EVERY, FIRST_WAVE_DELAY, MAX_HITS_PER_SECOND, MAX_MULT, SCORES, SCORE_UNIT, SPLITTER_CHILDREN, bossHp, bossSpecialCap, multiplier } from '../../src/game/rules.js'
 import { buildWave } from '../../src/game/waveplan.js'
 
 // Sanity checks on a submitted run, derived from the game's own wave plan. The game runs in the browser,
@@ -26,8 +26,9 @@ function ensure(w) {
     const events = buildWave(n)
     let shortest
     if (n % BOSS_EVERY === 0) {
-      // the leviathan appears, takes every hit as fast as twin cannons can land them, then dies
-      shortest = events[0].t + bossHp(n) / MAX_HITS_PER_SECOND + BOSS_DYING
+      // the leviathan appears, eats its full share of pickup weapons at once, takes every other hit as fast as
+      // twin cannons can land them, then dies
+      shortest = events[0].t + (bossHp(n) - bossSpecialCap(n)) / MAX_HITS_PER_SECOND + BOSS_DYING
     } else {
       // every creature has to spawn before the wave can clear; one can die the moment it appears
       for (const e of events) {

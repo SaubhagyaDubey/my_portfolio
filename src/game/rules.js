@@ -27,6 +27,9 @@ export const bossHp = (wave) => {
 }
 // fastest possible damage: both cannons every TWIN_FIRE_CD
 export const MAX_HITS_PER_SECOND = 2 / TWIN_FIRE_CD
+// pickup weapons (nova, lance, swarm) can take at most this share of a leviathan's health; the rest is cannon work
+export const BOSS_SPECIAL_SHARE = 0.4
+export const bossSpecialCap = (wave) => Math.floor(bossHp(wave) * BOSS_SPECIAL_SHARE)
 
 // ---- the lane
 export const BOX = { x: 12, y: 6.5 } // how far the ship can slide from centre

@@ -12,10 +12,10 @@ export default function Station({ stop, world }) {
     if (ring.current) ring.current.rotation.z += dt * 0.12
     if (beacon.current) beacon.current.material.emissiveIntensity = Math.sin(t * 4) > 0.6 ? 8 : 0.1
   })
-  // a brass ring with hextech-lit windows: topside architecture in orbit
+  // a steel ring with hextech-lit windows: topside architecture in orbit
   const gm = toonRamp()
   const hull = { color: world.accent2, gradientMap: gm }
-  const dark = { color: '#3a2a1a', gradientMap: gm }
+  const dark = { color: '#262b33', gradientMap: gm }
   const spokes = [0, 1, 2, 3, 4, 5]
   const windows = Array.from({ length: 24 }, (_, i) => (i / 24) * Math.PI * 2)
   return (

@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { BOSS } from './creatures.js'
+import { laneFor, setLane } from './lanes.js'
 import { FIRST_WAVE_DELAY } from './rules.js'
 
 export { BOX } from './rules.js'
@@ -20,6 +21,7 @@ export const MAX_CREATURES = 160
 export const MAX_SHOTS = 220
 export const MAX_ORBS = 160
 export const MAX_PICKUPS = 12
+export const MAX_MISSILES = 36
 export const BOSS_SEGMENTS = 16
 
 const BEST_KEY = 'deepfield.impact.best'
@@ -60,13 +62,21 @@ export const game = {
   comboT: 0,
   kills: 0,
   reduced: false,
-  player: { x: 0, y: 0, vx: 0, vy: 0, bank: 0, pitch: 0, rollT: 0, rollDir: 1, rollCd: 0, inv: 0, fireCd: 0, muzzle: 0, twin: 0, alive: true },
-  input: { tx: 0, ty: 0, fire: false, keys: new Set(), roll: false },
+  city: 'under', // the city this run launched from; the lanes start there
+  held: [], // pickup weapons on the rack, fired oldest first
+  specialCd: 0,
+  toastT: 0,
+  shieldPop: 0, // the shield bubble bursting after it eats a hit
+  nova: { t: -1, x: 0, y: 0, z: 0, hitBoss: false }, // t < 0 when no ring is running
+  lance: { t: 0, tick: 0 }, // t > 0 while the beam is on
+  player: { x: 0, y: 0, vx: 0, vy: 0, bank: 0, pitch: 0, rollT: 0, rollDir: 1, rollCd: 0, inv: 0, fireCd: 0, muzzle: 0, twin: 0, shield: 0, wind: 0, alive: true },
+  input: { tx: 0, ty: 0, fire: false, keys: new Set(), roll: false, special: false },
   creatures: pool(MAX_CREATURES, () => ({ on: false, kind: 'jelly', x: 0, y: 0, z: 0, bx: 0, by: 0, vx: 0, vy: 0, vz: 0, hp: 1, r: 1, t: 0, phase: 0, pattern: 'sway', flash: 0, fireCd: 0, hold: 0 })),
   shots: pool(MAX_SHOTS, () => ({ on: false, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, life: 0 })),
   orbs: pool(MAX_ORBS, () => ({ on: false, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, life: 0 })),
-  pickups: pool(MAX_PICKUPS, () => ({ on: false, kind: 'repair', x: 0, y: 0, z: 0, t: 0 })),
-  boss: { on: false, x: 0, y: 0, z: 0, hp: 0, max: 1, t: 0, fireCd: 0, callCd: 0, flash: 0, dying: 0, trail: [] },
+  pickups: pool(MAX_PICKUPS, () => ({ on: false, kind: 'repair', x: 0, y: 0, z: 0, t: 0, big: false })),
+  missiles: pool(MAX_MISSILES, () => ({ on: false, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, life: 0, target: null, spark: 0 })),
+  boss: { on: false, x: 0, y: 0, z: 0, hp: 0, max: 1, t: 0, fireCd: 0, callCd: 0, flash: 0, dying: 0, specialLeft: 0, trail: [] },
   bursts: [], // { x, y, z, color, n, speed, size } queued for Explosions
 }
 
@@ -82,7 +92,12 @@ export const useGame = create((set) => ({
   banner: null, // { text, sub, key }
   boss: null, // 0..1 health while a boss is up
   twin: false,
+  held: '', // the rack, space-separated, oldest first
+  shield: false,
+  wind: false,
+  toast: null, // { kind, full, key } when a pickup lands
   hit: 0, // bumps on every hit, drives the red flash
+  flash: 0, // bumps on every nova, drives the white flash
   set,
 }))
 
@@ -102,14 +117,22 @@ export function resetGame(startWave = 1) {
   game.combo = 0
   game.comboT = 0
   game.kills = 0
-  Object.assign(game.player, { x: 0, y: 0, vx: 0, vy: 0, bank: 0, pitch: 0, rollT: 0, rollCd: 0, inv: 1.5, fireCd: 0, muzzle: 0, twin: 0, alive: true })
+  game.held = []
+  game.specialCd = 0
+  game.toastT = 0
+  game.shieldPop = 0
+  game.nova.t = -1
+  game.lance.t = 0
+  Object.assign(game.player, { x: 0, y: 0, vx: 0, vy: 0, bank: 0, pitch: 0, rollT: 0, rollCd: 0, inv: 1.5, fireCd: 0, muzzle: 0, twin: 0, shield: 0, wind: 0, alive: true })
   game.input.tx = 0
   game.input.ty = 0
-  for (const list of [game.creatures, game.shots, game.orbs, game.pickups]) for (const e of list) e.on = false
+  game.input.special = false
+  for (const list of [game.creatures, game.shots, game.orbs, game.pickups, game.missiles]) for (const e of list) e.on = false
   game.boss.on = false
   game.boss.trail.length = 0
   game.bursts.length = 0
-  useGame.getState().set({ score: 0, hull: HULL_MAX, wave: startWave, mult: 1, banner: null, boss: null, twin: false })
+  setLane(laneFor(startWave, game.city), true)
+  useGame.getState().set({ score: 0, hull: HULL_MAX, wave: startWave, mult: 1, banner: null, boss: null, twin: false, held: '', shield: false, wind: false, toast: null })
 }
 
 // The DOM reticle, positioned from the render loop (like the flags in the galaxies).

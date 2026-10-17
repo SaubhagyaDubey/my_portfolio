@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from 'react'
 
-// A very small history router. Routes: "/", "/under", "/top", "/text". "/blue" and "/red" redirect.
+// A very small history router. Routes: "/", "/under", "/top", "/play", "/text". "/blue" and "/red" redirect.
+// A galaxy can be opened at one stop with ?stop=<id> (see src/scenes/Explore.jsx).
 const listeners = new Set()
 
 function emit() {
@@ -28,4 +29,18 @@ function getPath() {
 
 export function usePath() {
   return useSyncExternalStore(subscribe, getPath, () => '/')
+}
+
+export function searchParam(name) {
+  if (typeof window === 'undefined') return null
+  return new URLSearchParams(window.location.search).get(name)
+}
+
+// Drop one query parameter without a new history entry. Other parameters (?fx, ?intro) stay, and
+// nothing re-renders because the path hasn't changed.
+export function dropSearchParam(name) {
+  const url = new URL(window.location.href)
+  if (!url.searchParams.has(name)) return
+  url.searchParams.delete(name)
+  window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash)
 }

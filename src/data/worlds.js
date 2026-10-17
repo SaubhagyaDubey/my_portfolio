@@ -5,6 +5,8 @@
 // fact is the plain, checkable line on each flag (company, role, dates, place). tag is the poetic one.
 // pos is in world units on the flight plane (camera sits ~60 units above it).
 // r is the object's visual radius, used for docking distance and the marker ring.
+// air (planets only) is the sky the scene blends to while you're docked there: backdrop, haze, ambient light
+// and grade, in the same shape as a city's. Text and plates keep the city's colours.
 
 import { CITIES } from './palette.js'
 
@@ -26,9 +28,14 @@ export const WORLDS = {
         title: 'delhi',
         tag: "where i'm from",
         fact: 'new delhi · 28.61° n, 77.21° e',
-        face: 'front',
         pos: [-90, 22],
         r: 7,
+        air: {
+          sky: ['#040a16', '#163a66'],
+          smog: '#2f6aa8',
+          ambient: '#2f507a',
+          grade: { shadow: '#081830', mid: '#3f78b8', high: '#bfe0ff' },
+        },
         story: [
           "this is where i'm from. that little light on the right side is delhi. loud, hot, a bit much, and i still like it more than most places i've been.",
           "most of what's out here started there. come on, i'll show you around.",
@@ -41,7 +48,6 @@ export const WORLDS = {
         title: 'the why',
         tag: 'how my head works',
         fact: 'how i think · questions before answers',
-        face: 'look-up',
         pos: [-32, -30],
         r: 5,
         story: [
@@ -56,7 +62,6 @@ export const WORLDS = {
         title: 'two books',
         tag: 'what i keep re-reading',
         fact: 'two books · one ~2,000 yrs old, one ~150',
-        face: 'thinking',
         pos: [24, 32],
         r: 4,
         story: [
@@ -71,7 +76,7 @@ export const WORLDS = {
         title: "the ones that didn't come back",
         tag: 'things i built that failed',
         fact: "side projects · the ones that didn't ship",
-        face: 'look-down',
+        preview: { name: 'side projects', meta: "the ones that didn't come back" },
         pos: [80, -8],
         r: 4.5,
         story: [
@@ -86,7 +91,7 @@ export const WORLDS = {
         title: 'the guessing game',
         tag: 'geoguessr, mostly',
         fact: 'geoguessr · most weeks',
-        face: 'big-smile',
+        preview: { name: 'geoguessr', meta: 'most weeks' },
         pos: [40, -66],
         r: 3,
         story: [
@@ -101,7 +106,7 @@ export const WORLDS = {
         title: 'the rules',
         tag: 'why this place looks like this',
         fact: 'this site · rules written before code',
-        face: 'wink',
+        preview: { name: 'this site', meta: 'why it looks like this' },
         pos: [-45, -72],
         r: 14,
         story: [
@@ -115,7 +120,6 @@ export const WORLDS = {
         title: 'up to topside',
         tag: 'the work',
         fact: 'topside · the work, 2020 → now',
-        face: 'look-right',
         pos: [-112, -52],
         r: 6,
         to: 'top',
@@ -141,10 +145,15 @@ export const WORLDS = {
         title: 'unthinkable',
         tag: '2020 · where it started',
         fact: 'unthinkable solutions · associate tech · jan 2020 – sep 2021 · gurugram',
-        face: 'front',
         pos: [-112, 26],
         r: 5,
-        visual: { type: 'rocky', colors: ['#21403f', '#5f7f5a', '#c9a86a', '#efe3cf'], atmo: '#9fe0ff', seed: 3.1, freq: 2.2 },
+        visual: { type: 'rocky', colors: ['#21403f', '#5f7f5a', '#a9c2b4', '#eef4f2'], atmo: '#9fe0ff', seed: 3.1, freq: 2.2 },
+        air: {
+          sky: ['#04100f', '#1c4a44'],
+          smog: '#3f8a7a',
+          ambient: '#3d6b62',
+          grade: { shadow: '#0a2624', mid: '#4f8a72', high: '#9fe0ff' },
+        },
         story: [
           'first job, gurugram, january 2020. nobody there did flutter, so i started it. taught it to the next person, then the next. by the time i left there were about twenty of us shipping with it.',
           "teaching something you learnt three months ago is a good way to find out what you actually understand. two of those people work with me today, which i'm quietly pleased about.",
@@ -157,10 +166,15 @@ export const WORLDS = {
         title: 'elixia',
         tag: '2021 · mumbai, from a desk in delhi',
         fact: 'elixia tech · senior flutter dev · sep 2021 – may 2022 · mumbai',
-        face: 'look-down',
         pos: [-58, -32],
         r: 4.5,
-        visual: { type: 'ice', colors: ['#34485a', '#6f8fa0', '#b8ccd2', '#f1e8da'], atmo: '#9ff1ff', ring: '#d9b77a', seed: 7.7, freq: 2.6 },
+        visual: { type: 'ice', colors: ['#34485a', '#6f8fa0', '#b8ccd2', '#eef3f8'], atmo: '#9ff1ff', ring: '#c4d2e2', seed: 7.7, freq: 2.6 },
+        air: {
+          sky: ['#060b12', '#2a4258'],
+          smog: '#7fa4c0',
+          ambient: '#5a7088',
+          grade: { shadow: '#101c2a', mid: '#7a96ae', high: '#c8f4ff' },
+        },
         story: [
           'then a mumbai company, mostly from a desk in delhi. three old angularjs apps moved over to flutter web. same features, quicker.',
           'also built a booking system for maersk so trucks stop jamming up outside warehouses. unglamorous. useful. i like that kind of work more than i admit.',
@@ -173,10 +187,15 @@ export const WORLDS = {
         title: 'super six',
         tag: '2022 · sports apps, a million downloads',
         fact: 'super six sports gaming · flutter lead · may 2022 – oct 2023 · noida',
-        face: 'big-smile',
         pos: [-4, 30],
         r: 9,
-        visual: { type: 'gas', colors: ['#c97a3a', '#f0c987', '#7a3a1e', '#ffe6c4'], atmo: '#ffb070', seed: 1.3, freq: 1.0 },
+        visual: { type: 'gas', colors: ['#5b4b9a', '#b9adf0', '#2d2357', '#f1eeff'], atmo: '#c9bcff', seed: 1.3, freq: 1.0 },
+        air: {
+          sky: ['#0a0714', '#33285e'],
+          smog: '#7a68c8',
+          ambient: '#5a4c8a',
+          grade: { shadow: '#1a1236', mid: '#7f6cc4', high: '#e0d6ff' },
+        },
         story: [
           '2022, noida. fantasy sports. a team of five and me shipped three apps: fantasy akhada, vusport, usq. fantasy akhada went past a million downloads.',
           "during a messi friendly we had a hundred thousand people watching live at the same time, and in ipl season the payments were moving five to ten crore a day. that year i learnt what 'at scale' actually means, and that i like running a team more than i expected.",
@@ -189,10 +208,15 @@ export const WORLDS = {
         title: 'ok2 health',
         tag: '2023 · fifty thousand lines down to seven',
         fact: 'ok2 health apps · flutter developer · oct 2023 – mar 2024 · remote',
-        face: 'thinking',
         pos: [46, -36],
         r: 4,
-        visual: { type: 'rocky', colors: ['#1e3a32', '#4f8a6a', '#b8c890', '#f2ead0'], atmo: '#8fe8d8', seed: 5.5, freq: 3.0 },
+        visual: { type: 'rocky', colors: ['#1e3a32', '#4f8a6a', '#b8c890', '#eef5ee'], atmo: '#8fe8d8', seed: 5.5, freq: 3.0 },
+        air: {
+          sky: ['#050f0a', '#1f4a32'],
+          smog: '#5f9a6e',
+          ambient: '#4a7258',
+          grade: { shadow: '#0c2416', mid: '#5f9a6a', high: '#c6f5e8' },
+        },
         story: [
           '2023, remote. a health app with fifty thousand lines of flutter in it. i took it down to seven thousand, same features, moved everything onto bloc so it made sense again.',
           'wrote some go on the backend too, because the work needed it and waiting on someone else felt silly.',
@@ -205,10 +229,15 @@ export const WORLDS = {
         title: 'dtdc',
         tag: '2024 · built a team from nothing',
         fact: 'dtdc · senior engineer, mobile lead · may 2024 – aug 2025 · gurugram',
-        face: 'look-up',
         pos: [96, 26],
         r: 6,
-        visual: { type: 'rocky', colors: ['#5a2a18', '#b5542a', '#e39a5b', '#f6e3c8'], atmo: '#ff9a6b', ring: '#d9a77a', seed: 9.2, freq: 2.0 },
+        visual: { type: 'rocky', colors: ['#4a1220', '#a8323f', '#e46a72', '#fbeef0'], atmo: '#ff8a94', ring: '#d8dfe9', seed: 9.2, freq: 2.0 },
+        air: {
+          sky: ['#12060a', '#4a1622'],
+          smog: '#a8323f',
+          ambient: '#7a3a44',
+          grade: { shadow: '#2a0a12', mid: '#a8424e', high: '#ffc2c8' },
+        },
         story: [
           "2024, gurugram, the courier company. no mobile team, so i built one. hired five people, decided how we'd ship, what a review looks like, when a release goes out.",
           'the app is for delivery folks. five thousand of them on the road at once, tracked live, with their territories sorted by the app instead of by hand.',
@@ -221,10 +250,15 @@ export const WORLDS = {
         title: 'tide',
         tag: 'now · a uk bank for small businesses',
         fact: 'tide · mobile engineer · aug 2025 – now · delhi ncr',
-        face: 'front',
         pos: [142, -26],
         r: 5.5,
-        visual: { type: 'rocky', colors: ['#13304a', '#2f6d8f', '#8fc8d8', '#f0e8d8'], atmo: '#9ff1ff', seed: 2.4, freq: 1.8 },
+        visual: { type: 'rocky', colors: ['#13304a', '#2f6d8f', '#8fc8d8', '#eef3fa'], atmo: '#9ff1ff', seed: 2.4, freq: 1.8 },
+        air: {
+          sky: ['#040a14', '#13304a'],
+          smog: '#2f6d8f',
+          ambient: '#2f5a78',
+          grade: { shadow: '#081a2e', mid: '#3a7aa0', high: '#9ff1ff' },
+        },
         story: [
           'now. tide, a uk bank for small businesses. i own how people subscribe, cancel, upgrade, add seats. helped it launch in germany.',
           "i'm also the person who writes the spec before anyone codes. people have mostly stopped fighting me on it. that habit came from the rules down in the undercity.",
@@ -237,7 +271,6 @@ export const WORLDS = {
         title: 'say hi',
         tag: 'the end of the line, for now',
         fact: 'dubeysaubhagya@gmail.com · delhi ncr',
-        face: 'wink',
         pos: [180, 22],
         r: 5,
         contact: true,
@@ -249,7 +282,6 @@ export const WORLDS = {
         title: 'down to the undercity',
         tag: 'the rest of me',
         fact: 'undercity · the rest of me',
-        face: 'look-left',
         pos: [206, -30],
         r: 6,
         to: 'under',
@@ -264,10 +296,9 @@ export const LAUNCH = {
   sub: 'somewhere out past the last app store',
   hello:
     "hi. i make apps, mostly in flutter, and i've been at it about six years. i built this small corner of space to tell you about myself. there are two sides. pick one, you can cross over later.",
-  act: 'act i · a small corner of space · pick a side',
-  idle: 'hover a side',
-  under: "the undercity is me. where i'm from, what i read, why i can't leave things alone.",
-  top: 'topside is the work. six places in six years, and what happened at each.',
+  line: 'hi. i make apps, mostly in flutter, about six years now. two sides to this place. pick one, you can cross over later.',
+  under: "where i'm from, what i read, why i can't leave things alone.",
+  top: 'six places in six years, and what happened at each.',
   underTitle: 'me',
   topTitle: 'the work',
   underCity: 'the undercity',
@@ -275,6 +306,7 @@ export const LAUNCH = {
   playOr: 'or neither',
   playTitle: 'play the game',
   play: 'skip the reading. fly the ship, shoot what glows, get on the leaderboard.',
+  keys: 'or click anywhere on a side',
   hint: 'once you are in: hold and drag to fly, or tap a flag',
 }
 
@@ -286,6 +318,17 @@ export const CONTACT = {
 
 export function stopsOf(worldKey) {
   return WORLDS[worldKey].stops
+}
+
+// One line per stop for the launch card's route preview. Topside reads as a CV (year · place · role,
+// all from `fact`); the undercity reads as a contents page (name · tag, or the stop's own `preview`).
+export function previewLines(worldKey) {
+  return routeOf(worldKey).map((s) => {
+    if (s.preview) return { id: s.id, year: null, ...s.preview }
+    const year = worldKey === 'top' ? (s.fact.match(/\b20\d{2}\b/)?.[0] ?? null) : null
+    if (year) return { id: s.id, year, name: s.short, meta: s.fact.split(' · ')[1] }
+    return { id: s.id, year: null, name: s.short, meta: s.tag }
+  })
 }
 
 export function routeOf(worldKey) {

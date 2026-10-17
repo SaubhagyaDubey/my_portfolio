@@ -194,9 +194,9 @@ export default function ShipModel({ accent, accent2, glow, thrust, cockpit = fal
   })
 
   const gm = toonRamp()
-  const hull = { color: '#d8c9a8', gradientMap: gm }
-  const dark = { color: '#43362d', gradientMap: gm }
-  const metal = { color: '#8c8175', gradientMap: gm }
+  const hull = { color: '#c9d1dc', gradientMap: gm }
+  const dark = { color: '#2e333b', gradientMap: gm }
+  const metal = { color: '#7d8794', gradientMap: gm }
   const glass = { color: '#0d1c1a', gradientMap: gm, emissive: accent2, emissiveIntensity: 0.55 }
   const lit = { color: accent, toneMapped: false }
   const plasma = { transparent: true, toneMapped: false, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }
@@ -344,7 +344,7 @@ export default function ShipModel({ accent, accent2, glow, thrust, cockpit = fal
             <meshBasicMaterial color={glow} opacity={0.55} {...plasma} />
           </mesh>
           <mesh ref={flameRef(i * 2 + 1)} geometry={geo.flameInner} position={[-1.82, 0, 0]}>
-            <meshBasicMaterial color="#fff3dc" opacity={0.9} {...plasma} />
+            <meshBasicMaterial color="#f3f7ff" opacity={0.9} {...plasma} />
           </mesh>
         </group>
       ))}

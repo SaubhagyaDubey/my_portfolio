@@ -16,6 +16,7 @@ export default function Flags({ world }) {
           data-kind={s.kind}
           data-visited={visited.includes(s.id)}
           data-active={docked === s.id || target === s.id}
+          data-docked={docked === s.id}
           ref={(el) => {
             if (el) flagEls.set(s.id, el)
             else flagEls.delete(s.id)

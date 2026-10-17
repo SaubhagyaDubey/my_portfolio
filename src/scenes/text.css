@@ -3,19 +3,9 @@
   inset: 0;
   overflow: auto;
   background:
-    radial-gradient(1200px 600px at 85% -10%, color-mix(in oklab, #3a2a18 60%, transparent), transparent 60%),
+    radial-gradient(1200px 600px at 85% -10%, color-mix(in oklab, #1e2633 60%, transparent), transparent 60%),
     radial-gradient(900px 500px at 10% 110%, color-mix(in oklab, #1a352a 70%, transparent), transparent 60%),
     var(--ink);
-}
-
-.text::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  background: var(--paper-tile, none) 0 0 / 192px 192px;
-  mix-blend-mode: multiply;
-  opacity: 0.18;
-  pointer-events: none;
 }
 
 .text__inner {
@@ -52,7 +42,7 @@
 .text__world,
 .text__details {
   margin-top: 56px;
-  --accent: var(--brass);
+  --accent: var(--steel);
 }
 
 .text__world[data-city] {
@@ -61,7 +51,7 @@
 }
 
 .text__world[data-city='top'] {
-  border-left-color: var(--brass);
+  border-left-color: var(--steel);
 }
 
 .text h2 {

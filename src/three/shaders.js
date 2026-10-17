@@ -241,7 +241,7 @@ void main() {
   }
   float lightBand = ramp(dot(N, L), 0.0);
   float edge = 1.0 - pow(1.0 - max(dot(N, V), 0.0), 2.0);
-  vec3 col = vec3(1.0, 0.97, 0.9) * lightBand;
+  vec3 col = vec3(0.96, 0.98, 1.0) * lightBand;
   gl_FragColor = vec4(col, a * 0.7 * edge);
 }
 `
@@ -585,36 +585,59 @@ void main() {
 `
 
 // ---------- launch-scene galaxy points (pixel-space ortho) ----------
+// Unit-disc points, spun, flattened to an inclined disc and tilted. uBirth (0..1) unwinds the galaxy
+// outward from its centre during the cold open; uScale swells it when you commit.
 export const galaxyVert = /* glsl */ `
 attribute float aSize;
 attribute vec3 aColor;
 attribute float aPhase;
+attribute float aR;
 uniform float uSpin;
+uniform float uSpinDir;
 uniform float uTime;
 uniform float uGlow;
 uniform float uScale;
+uniform float uBirth;
 uniform float uPixelRatio;
 varying vec3 vC;
 void main() {
-  float c = cos(uSpin), s = sin(uSpin);
-  vec2 p = vec2(position.x * c - position.y * s, position.x * s + position.y * c);
+  float k = clamp((uBirth - aR * 0.55) / 0.45, 0.0, 1.0);
+  k = 1.0 - pow(1.0 - k, 3.0);
+  float ang = uSpin + (1.0 - k) * 5.0 * uSpinDir;
+  float c = cos(ang), s = sin(ang);
+  vec2 p = vec2(position.x * c - position.y * s, position.x * s + position.y * c) * k;
   p.y *= 0.58;
   float c2 = cos(-0.5), s2 = sin(-0.5);
   p = vec2(p.x * c2 - p.y * s2, p.x * s2 + p.y * c2) * uScale;
-  vec4 mv = modelViewMatrix * vec4(p, 0.0, 1.0);
-  gl_Position = projectionMatrix * mv;
-  float tw = 0.8 + 0.2 * sin(uTime * 1.3 + aPhase * 20.0);
-  gl_PointSize = aSize * uPixelRatio * (1.0 + uGlow * 0.5) * uScale * tw;
-  vC = aColor * (0.75 + uGlow * 0.55) * tw;
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 0.0, 1.0);
+  float tw = 0.85 + 0.15 * sin(uTime * 1.3 + aPhase * 20.0);
+  gl_PointSize = aSize * uPixelRatio * (1.0 + uGlow * 0.3) * sqrt(uScale) * tw;
+  vC = aColor * (0.6 + uGlow * 0.55) * tw * k;
 }
 `
+// a crisp dot with a hot core
 export const galaxyFrag = /* glsl */ `
 varying vec3 vC;
 void main() {
-  vec2 p = gl_PointCoord - 0.5;
-  float r = length(p * vec2(1.3, 1.0)) * 2.0;
-  float a = smoothstep(0.95, 0.5, r);
+  float r = length(gl_PointCoord - 0.5) * 2.0;
+  float a = smoothstep(1.0, 0.6, r) * 0.7 + smoothstep(0.5, 0.0, r) * 0.6;
   gl_FragColor = vec4(vC * a, a);
+}
+`
+// The light under a launch galaxy: a smooth core and disc glow in the same tilt as the points. No bands.
+export const galaxyHaloFrag = /* glsl */ `
+uniform vec3 uColor;
+uniform float uGlow;
+uniform float uBirth;
+varying vec2 vUv;
+void main() {
+  vec2 p = (vUv - 0.5) * 2.0;
+  float c = cos(0.5), s = sin(0.5);
+  p = vec2(p.x * c - p.y * s, p.x * s + p.y * c);
+  p.y /= 0.58;
+  float r2 = dot(p, p);
+  float v = (exp(-r2 * 90.0) * 0.45 + exp(-r2 * 3.5) * (0.1 + uGlow * 0.18)) * uBirth;
+  gl_FragColor = vec4(uColor * v, v);
 }
 `
 
@@ -637,7 +660,7 @@ void main() {
   vec2 p = gl_PointCoord - 0.5;
   float r = length(p) * 2.0;
   float a = pow(smoothstep(1.0, 0.0, r), 2.0) * vA;
-  gl_FragColor = vec4(vec3(0.98, 0.92, 0.8) * a, a);
+  gl_FragColor = vec4(vec3(0.9, 0.94, 1.0) * a, a);
 }
 `
 export const launchLineVert = /* glsl */ `
@@ -653,7 +676,7 @@ uniform float uPull;
 varying float vA;
 void main() {
   float a = vA * uPull;
-  gl_FragColor = vec4(vec3(0.95, 0.93, 0.87) * a, a);
+  gl_FragColor = vec4(vec3(0.91, 0.94, 1.0) * a, a);
 }
 `
 
@@ -661,7 +684,6 @@ void main() {
 export const backdropFrag = /* glsl */ `
 uniform float uTime;
 uniform vec2 uOffset;
-uniform vec3 uTint;
 uniform vec3 uSky0;
 uniform vec3 uSky1;
 uniform vec3 uSmog;
@@ -685,13 +707,10 @@ void main() {
       col = mix(col, uSmog * (0.16 + fi * 0.05), band * 0.55);
     }
   } else {
-    // topside: a warm diagonal haze band and sparse brass dust
+    // topside: a cool diagonal haze band
     float band = exp(-pow((p.y + p.x * 0.3) * 4.0, 2.0));
     float haze = smoothstep(0.42, 0.5, n) * band;
     col = mix(col, uSmog * 0.22, haze * 0.7);
-    vec2 cell = floor((vUv + uOffset * 0.5) * 900.0);
-    float speck = step(0.9965, fract(sin(dot(cell, vec2(12.9898, 78.233))) * 43758.5453));
-    col += uTint * speck * 0.25;
   }
   float dark = smoothstep(0.55, 0.62, fbm3(q * 3.4 + 9.0) * 0.5 + 0.5);
   col *= 1.0 - dark * 0.35;
@@ -699,8 +718,10 @@ void main() {
 }
 `
 
-// ---------- launch card sky: undercity smog on the left, topside brass haze on the right ----------
-// The seam is torn by noise and slides toward whichever side is hovered (uSeam 0..1 in screen x).
+// ---------- launch card sky: undercity smog on one side, topside haze on the other ----------
+// The seam is a clean line of hextech light that leans toward whichever side the pointer is on
+// (uSeam 0..1 across the screen). Cold open: a spark (uSpark), the seam tearing open from one end
+// (uTear), then both cities flooding outward from it (uFlood). All three sit at 1 afterwards.
 export const launchSkyFrag = /* glsl */ `
 uniform float uTime;
 uniform float uSeam;
@@ -712,16 +733,49 @@ uniform vec3 uUnderSmog;
 uniform vec3 uTop0;
 uniform vec3 uTop1;
 uniform vec3 uTopSmog;
-uniform vec3 uBrass;
+uniform vec3 uUnderAcc;
+uniform vec3 uUnderAcc2;
+uniform vec3 uTopAcc;
+uniform vec3 uTopAcc2;
+uniform vec3 uCore;
+uniform vec3 uInk;
+uniform float uTear;
+uniform float uFlood;
+uniform float uSpark;
+uniform float uGlowUnder; // how far the pointer leans into each city, 0..1
+uniform float uGlowTop;
+uniform float uPulse;
 varying vec2 vUv;
 ${noise}
+// One city's nebula bank against the seam. into = distance into that city in screen heights (negative is
+// across the seam). As reveal rises the bank thickens and reaches further back, and the clouds further out
+// need more of it to show, so a bank unfurls outward instead of fading all at once.
+float bank(float n, float into, float reveal) {
+  float reach = mix(0.08, 0.4, reveal);
+  float zone = smoothstep(-0.24, 0.06, into) * exp(-max(into, 0.0) / reach);
+  float thresh = mix(0.7, 0.42, reveal) + max(into, 0.0) * 0.45;
+  return smoothstep(thresh, thresh + 0.24, n) * zone;
+}
 void main() {
   vec2 p = (vUv - 0.5) * uAspect;
   float w = fbm3(vec3(p * 2.2, 3.0));
   float across = mix(vUv.x, vUv.y, uVertical);
   float along = mix(vUv.y, vUv.x, uVertical);
-  float seam = uSeam + (fbm3(vec3(along * 5.0, 1.0, uTime * 0.02)) * 0.07) + (along - 0.5) * 0.08;
-  float side = smoothstep(seam - 0.01, seam + 0.01, across + w * 0.015);
+  float tc = uTime * 0.018;
+
+  // one slow, domain-warped cloud field shapes both the seam and the nebulae piled against it
+  vec3 wp = vec3(p * 1.4, tc);
+  vec2 warp = vec2(fbm3(wp), fbm3(wp + vec3(5.2, 1.3, 2.7)));
+  float cloud = fbm(vec3(p * 2.3 + warp * 1.1, tc * 1.4 + 4.0)) * 0.5 + 0.5;
+  float detail = fbm3(vec3(p * 7.0 + warp * 2.0, tc * 2.0 + 9.0));
+
+  // no line: the cities meet along a ragged cloud front. sd is signed distance from it in screen heights
+  // (negative = undercity), so it weighs the same in both layouts
+  float seam = uSeam + (along - 0.5) * 0.06;
+  float sd0 = (across - seam) * mix(uAspect.x, 1.0, uVertical);
+  float sd = sd0 + (cloud - 0.5) * 0.18;
+  float ad = abs(sd);
+  float side = smoothstep(-0.05, 0.05, sd);
 
   // undercity: dark teal gradient, three flat bands of smog rising from the bottom
   vec3 under = mix(uUnder0, uUnder1, smoothstep(0.9, 0.0, vUv.y + w * 0.1)) * 0.5;
@@ -733,16 +787,48 @@ void main() {
     under = mix(under, uUnderSmog * (0.32 - fi * 0.07), band * 0.6);
   }
 
-  // topside: warm sky lightening toward the horizon line, a haze band and brass specks
+  // topside: warm sky lightening toward the horizon line, and a haze band
   vec3 top = mix(uTop0, uTop1, smoothstep(1.0, 0.25, vUv.y + w * 0.08)) * 0.55;
   float haze = smoothstep(0.42, 0.5, fbm(vec3(p * 3.0, 7.0)) * 0.5 + 0.5) * exp(-pow((vUv.y - 0.38) * 4.0, 2.0));
   top = mix(top, uTopSmog * 0.5, haze * 0.6);
-  vec2 cell = floor(vUv * uAspect * 520.0);
-  top += uBrass * step(0.997, fract(sin(dot(cell, vec2(12.9898, 78.233))) * 43758.5453)) * 0.6;
 
   vec3 col = mix(under, top, side);
-  // a thin brushed line of light along the seam
-  col += mix(uUnderSmog, uBrass, 0.5) * (1.0 - smoothstep(0.0, 0.004, abs(across + w * 0.015 - seam))) * 0.12;
+  vec3 acc = mix(uUnderAcc, uTopAcc, side);
+
+  // cold open: the cities flood out from the seam behind a soft, cloudy wavefront
+  float reach = uFlood * 1.6;
+  float front = ad + (cloud - 0.5) * 0.2;
+  float flood = 1.0 - smoothstep(reach - 0.14, reach, front);
+  col = mix(uInk, col, flood);
+  float rim = exp(-pow((front - reach) * 12.0, 2.0)) * step(0.001, uFlood) * (1.0 - uFlood);
+  col += acc * rim * cloud * 0.6;
+
+  // the nebulae unfurl down the seam from one end: top → bottom, or left → right on phones
+  float from = mix(1.0 - along, along, uVertical);
+  float torn = 1.0 - smoothstep(uTear - 0.18, uTear, from);
+
+  // each city's bank sits on its own side and they interlock: undercity clouds where the field is thick,
+  // topside clouds where it's thin. Lean into one and it rolls in while the other thins out
+  float lift = uPulse * 0.35 + (1.0 - uFlood) * 0.3;
+  float revU = clamp(mix(0.5, 1.0, uGlowUnder) * (1.0 - uGlowTop) + lift, 0.0, 1.0);
+  float revT = clamp(mix(0.5, 1.0, uGlowTop) * (1.0 - uGlowUnder) + lift, 0.0, 1.0);
+  // the banks are placed from the smooth seam, so their clouds spill over the ragged edge rather than stop at it
+  float dU = bank(cloud + detail * 0.16, -sd0, revU) * torn;
+  float dT = bank(1.0 - cloud + detail * 0.16, sd0, revT) * torn;
+  float hue = snoise(vec3(p * 1.2 + warp * 0.7, tc + 2.0)) * 0.5 + 0.5;
+  vec3 tintU = mix(uUnderAcc, uUnderAcc2, smoothstep(0.58, 0.85, hue));
+  vec3 tintT = mix(uTopAcc, uTopAcc2, smoothstep(0.58, 0.85, hue));
+  // soft body, a hotter core where the cloud is densest
+  col += tintU * (dU * 0.5 + dU * dU * 0.5) * (0.2 + 0.8 * revU) * 0.36;
+  col += tintT * (dT * 0.5 + dT * dT * 0.5) * (0.2 + 0.8 * revT) * 0.42;
+  col += uCore * (pow(dU, 3.0) * revU + pow(dT, 3.0) * revT) * 0.16;
+  // the leading edge of the tear billows brighter as it goes
+  float head = exp(-pow((from - uTear) * 9.0, 2.0)) * exp(-ad * 22.0) * step(0.001, uTear) * step(uTear, 1.0);
+  col += acc * head * smoothstep(0.35, 0.75, cloud) * 0.9;
+
+  // the spark: a hot point and a thin streak through it
+  vec2 c = (vUv - 0.5) * uAspect;
+  col += uCore * (exp(-length(c) * 40.0) * 2.4 + exp(-abs(c.y) * 400.0) * exp(-abs(c.x) * 5.0) * 0.9) * uSpark;
   gl_FragColor = vec4(col, 1.0);
 }
 `

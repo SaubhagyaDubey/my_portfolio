@@ -96,7 +96,7 @@ export default function Planet({ stop, light, world }) {
       uAtmo: { value: color(visual.atmo) },
       uRim: { value: color(world.accent) },
       uRimW: { value: 0.18 },
-      uHatch: { value: visual.type === 'rocky' ? 1 : 0 },
+      uHatch: { value: 0 }, // per-pixel hatching shimmered like grain on small spinning planets
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [],

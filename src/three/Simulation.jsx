@@ -1,7 +1,8 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
-import { flagEls, resetSim, sim, useStore } from '../state/store.js'
+import { approachPoint } from '../lib/arrival.js'
+import { flagEls, flyTo, resetSim, sim, useStore } from '../state/store.js'
 
 const ACC = 64 // units/s²
 const MAX = 46 // units/s
@@ -21,22 +22,44 @@ function lerpAngle(a, b, t) {
 }
 
 // Flies the ship, follows it with the camera, docks at stops, and pins the DOM flags.
-export default function Simulation({ world, reduced }) {
+// arrival: a stop id from a deep link. The ship starts just short of it and autopilots in.
+export default function Simulation({ world, reduced, arrival = null }) {
   const { camera, size } = useThree()
   const v = useMemo(() => new THREE.Vector3(), [])
+  const pending = useRef(null)
 
   useEffect(() => {
     resetSim(world)
     if (reduced) sim.camZ = CAM_Z
-    camera.position.set(world.start[0], world.start[1], sim.camZ)
+    const stop = arrival ? world.stops.find((s) => s.id === arrival) : null
+    if (stop) {
+      // reduced motion lands right at the dock line, so the autopilot docks on its first frame
+      const p = reduced ? null : approachPoint(world, stop.id)
+      const dx = stop.pos[0] - (p ? p[0] : world.start[0])
+      const dy = stop.pos[1] - (p ? p[1] : world.start[1])
+      const d = Math.hypot(dx, dy) || 1
+      const at = p ?? [stop.pos[0] - (dx / d) * (stop.r + 10.5), stop.pos[1] - (dy / d) * (stop.r + 10.5)]
+      sim.x = at[0]
+      sim.y = at[1]
+      sim.angle = Math.atan2(dy, dx)
+      pending.current = stop.id
+    }
+    camera.position.set(sim.x, sim.y, sim.camZ)
     camera.rotation.set(0, 0, 0) // fiber aims new cameras at the origin; we want straight down
     camera.updateProjectionMatrix()
-  }, [world, reduced, camera])
+  }, [world, reduced, camera, arrival])
 
   useFrame((_, delta) => {
     const dt = Math.min(delta, 0.05)
     const st = useStore.getState()
     const stops = world.stops
+
+    // a deep link flies in once the world is set (Explore's setWorld clears the target, so wait for it)
+    if (pending.current && st.worldKey === world.key) {
+      const id = pending.current
+      pending.current = null
+      flyTo(id)
+    }
 
     // visible extent of the flight plane at the current camera height
     const fovH = 2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2) * camera.position.z

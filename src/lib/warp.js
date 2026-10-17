@@ -2,7 +2,12 @@ import { CITIES } from '../data/palette.js'
 import { navigate } from './router.js'
 import { useStore } from '../state/store.js'
 
-// Throw a splash of the destination city's colour across the screen, change scene underneath it,
+// The city a path leads to, ignoring any query: '/top?stop=tide' → 'top'.
+export function cityOf(path) {
+  return path.split(/[?#]/)[0].replace(/^\//, '')
+}
+
+// Open a hex of the destination city's colour across the screen, change scene underneath it,
 // then let it fade. ~540ms. Reduced motion: a straight cut.
 export function warpTo(path, origin = null) {
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -10,8 +15,7 @@ export function warpTo(path, origin = null) {
     navigate(path)
     return
   }
-  const key = path.replace(/^\//, '')
-  const city = CITIES[key]
+  const city = CITIES[cityOf(path)]
   const color = city ? `color-mix(in oklab, ${city.accent} 42%, ${city.plate[1]})` : 'var(--ink)'
   const x = `${Math.round(origin ? origin.x : window.innerWidth / 2)}px`
   const y = `${Math.round(origin ? origin.y : window.innerHeight / 2)}px`

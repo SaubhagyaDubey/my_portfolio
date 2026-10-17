@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
+import { pal } from './lanes.js'
 import { MAX_ORBS, MAX_SHOTS, game } from './state.js'
 
 const dummy = new THREE.Object3D()
 
-// Player bolts in the city's glow, enemy orbs in its second light. Both pooled and instanced.
-export default function Bullets({ city }) {
+// Player bolts in the lane's glow, enemy orbs in its second light. Both pooled and instanced.
+export default function Bullets() {
   const shots = useRef()
   const orbs = useRef()
   const halo = useRef()
@@ -15,14 +16,6 @@ export default function Bullets({ city }) {
     bolt.rotateX(Math.PI / 2)
     return { bolt, orb: new THREE.SphereGeometry(0.42, 12, 10), halo: new THREE.SphereGeometry(0.8, 12, 10) }
   }, [])
-  const colors = useMemo(
-    () => ({
-      shot: new THREE.Color(city.glow).multiplyScalar(2.6),
-      orb: new THREE.Color(city.accent2).multiplyScalar(2.4),
-      halo: new THREE.Color(city.accent2),
-    }),
-    [city],
-  )
   useEffect(
     () => () => {
       for (const g of Object.values(geo)) g.dispose()
@@ -32,6 +25,9 @@ export default function Bullets({ city }) {
 
   useFrame(({ clock }) => {
     const t = clock.elapsedTime
+    if (shots.current) shots.current.material.color.copy(pal.glow).multiplyScalar(2.6)
+    if (orbs.current) orbs.current.material.color.copy(pal.accent2).multiplyScalar(2.4)
+    if (halo.current) halo.current.material.color.copy(pal.accent2)
     if (shots.current) {
       let n = 0
       for (const s of game.shots) {
@@ -67,13 +63,13 @@ export default function Bullets({ city }) {
   return (
     <>
       <instancedMesh ref={shots} args={[geo.bolt, undefined, MAX_SHOTS]} frustumCulled={false}>
-        <meshBasicMaterial color={colors.shot} toneMapped={false} />
+        <meshBasicMaterial toneMapped={false} />
       </instancedMesh>
       <instancedMesh ref={orbs} args={[geo.orb, undefined, MAX_ORBS]} frustumCulled={false}>
-        <meshBasicMaterial color={colors.orb} toneMapped={false} />
+        <meshBasicMaterial toneMapped={false} />
       </instancedMesh>
       <instancedMesh ref={halo} args={[geo.halo, undefined, MAX_ORBS]} frustumCulled={false}>
-        <meshBasicMaterial color={colors.halo} transparent opacity={0.28} blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} />
+        <meshBasicMaterial transparent opacity={0.28} blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} />
       </instancedMesh>
     </>
   )

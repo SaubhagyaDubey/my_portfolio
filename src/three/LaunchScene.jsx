@@ -2,13 +2,17 @@ import { useEffect, useMemo, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { BASE, CITIES } from '../data/palette.js'
+import { INTRO, beat, easeInOut, easeOutCubic, easeOutExpo } from '../lib/intro.js'
+import { SEAM_WARP, ease, seamFor } from '../lib/lean.js'
 import { mulberry32 } from '../lib/seed.js'
-import { fxEnabled } from '../lib/tier.js'
+import { fxEnabled, getTier } from '../lib/tier.js'
 import Effects from './Effects.jsx'
+import { GALAXY_COUNT, buildGalaxy } from './galaxy.js'
+import LaunchShip from './LaunchShip.jsx'
 import {
-  coronaFrag,
   flatVert,
   galaxyFrag,
+  galaxyHaloFrag,
   galaxyVert,
   launchLineFrag,
   launchLineVert,
@@ -19,111 +23,115 @@ import {
 import { color, useShaderMaterial } from './useShaderMaterial.js'
 
 const N_STARS = 560
-const N_GAL = 4200
 
 // The orthographic launch scene works in CSS pixels: world x = px - W/2, world y = H/2 - py.
+// `state` is the Launch state ref (see freshState in src/scenes/Launch.jsx).
+
+// One clock for the whole card. Runs first every frame: advances the cold open (and scrubs its DOM
+// animations), eases the lean, and works out the seam, each galaxy's glow and the intro beats that
+// everything else reads.
+function Director({ state }) {
+  useFrame((_, delta) => {
+    const s = state.current
+    const dt = Math.min(delta, 1 / 30) // a slow first frame mustn't swallow the intro's beats
+    const intro = s.intro
+    if (intro.on) {
+      intro.t += dt * intro.rate
+      const ms = Math.min(intro.t, INTRO.total) * 1000
+      for (const a of intro.anims) a.currentTime = ms
+      const before = intro.t - dt * intro.rate
+      if (before < INTRO.pulse && intro.t >= INTRO.pulse) s.seamPulse = 1
+      if (intro.t >= INTRO.total) intro.finish?.()
+    }
+    const t = intro.on ? intro.t : INTRO.total
+    const fx = s.fx
+    fx.spark = easeOutExpo(beat(t, INTRO.spark)) * (1 - beat(t, INTRO.sparkFade))
+    fx.tear = easeInOut(beat(t, INTRO.tear)) * 1.05
+    fx.flood = easeOutCubic(beat(t, INTRO.flood))
+    fx.birth = beat(t, INTRO.birth)
+    fx.stars = beat(t, INTRO.stars)
+    fx.ship = easeOutCubic(beat(t, INTRO.ship))
+
+    // the lean: the pointer's, or a whole side when it's armed by keyboard or committed
+    let target = intro.on ? 0 : s.lean
+    if (s.warp === 'under' || s.warp === 'top') target = s.warp === 'under' ? -1 : 1
+    else if (s.reduced) target = s.armed === 'under' ? -1 : s.armed === 'top' ? 1 : 0
+    s.leanS = s.reduced ? target : ease(s.leanS, target, 7, dt)
+
+    if (s.warp === 'under' || s.warp === 'top') s.seam = s.reduced ? SEAM_WARP[s.warp] : ease(s.seam, SEAM_WARP[s.warp], 3.5, dt)
+    else s.seam = seamFor(s.leanS)
+
+    s.glow.under = s.warp === 'under' ? 1 : Math.max(0, -s.leanS)
+    s.glow.top = s.warp === 'top' ? 1 : Math.max(0, s.leanS)
+    s.seamPulse *= Math.exp(-6 * dt)
+  })
+  return null
+}
 
 function Galaxy({ id, state }) {
   const { gl } = useThree()
-  const hue = CITIES[id].accent
+  const city = CITIES[id]
   const geometry = useMemo(() => {
-    const rand = mulberry32(id === 'under' ? 3 : 5)
-    const pos = new Float32Array(N_GAL * 3)
-    const size = new Float32Array(N_GAL)
-    const col = new Float32Array(N_GAL * 3)
-    const phase = new Float32Array(N_GAL)
-    const base = new THREE.Color(hue)
-    const core = new THREE.Color(BASE.core)
-    const second = new THREE.Color(CITIES[id].accent2)
-    const tmp = new THREE.Color()
-    for (let i = 0; i < N_GAL; i++) {
-      const bulge = rand() < 0.22
-      let x
-      let y
-      let t
-      if (bulge) {
-        const rr = Math.pow(rand(), 1.6) * 0.22
-        const a = rand() * Math.PI * 2
-        x = Math.cos(a) * rr
-        y = Math.sin(a) * rr * 0.8
-        t = 0
-      } else {
-        t = Math.pow(rand(), 0.8)
-        const arm = i % 2
-        const spread = (rand() - 0.5) * (0.05 + t * 0.16)
-        const ang = t * 4.2 + arm * Math.PI + spread * 2.4
-        const rad = 0.05 + t * 0.95 + (rand() - 0.5) * 0.05
-        x = Math.cos(ang) * rad
-        y = Math.sin(ang) * rad
-      }
-      pos[i * 3] = x
-      pos[i * 3 + 1] = y
-      pos[i * 3 + 2] = 0
-      const bright = bulge ? 1.35 : 0.7 + rand() * 0.7 + (1 - t) * 0.35
-      size[i] = (bulge ? 1.4 : 0.9) + rand() * 1.5
-      tmp.copy(base).lerp(core, bulge ? 0.8 : Math.max(0, 0.4 - t * 0.6) + rand() * 0.12)
-      if (!bulge && rand() < 0.14) tmp.lerp(second, 0.75) // flecks of the city's second light
-      col[i * 3] = tmp.r * bright
-      col[i * 3 + 1] = tmp.g * bright
-      col[i * 3 + 2] = tmp.b * bright
-      phase[i] = rand()
-    }
+    const { pos, size, col, phase, radius } = buildGalaxy(id, GALAXY_COUNT[getTier()])
     const g = new THREE.BufferGeometry()
     g.setAttribute('position', new THREE.BufferAttribute(pos, 3))
     g.setAttribute('aSize', new THREE.BufferAttribute(size, 1))
     g.setAttribute('aColor', new THREE.BufferAttribute(col, 3))
     g.setAttribute('aPhase', new THREE.BufferAttribute(phase, 1))
+    g.setAttribute('aR', new THREE.BufferAttribute(radius, 1))
     g.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 1e6)
     return g
-  }, [id, hue])
+  }, [id])
+  useEffect(() => () => geometry.dispose(), [geometry])
+  const dir = id === 'under' ? 1 : -1
   const uniforms = useMemo(
     () => ({
-      uSpin: { value: 0 },
+      uSpin: { value: id === 'under' ? 0.4 : 1.9 },
+      uSpinDir: { value: dir },
       uTime: { value: 0 },
       uGlow: { value: 0 },
       uScale: { value: 1 },
+      uBirth: { value: 1 },
       uPixelRatio: { value: gl.getPixelRatio() },
     }),
-    [gl],
+    [gl, id, dir],
   )
   const material = useShaderMaterial(galaxyVert, galaxyFrag, uniforms, {
     transparent: true,
     depthWrite: false,
     blending: THREE.AdditiveBlending,
   })
-  const haloU = useMemo(() => ({ uTime: { value: 0 }, uColor: { value: color(hue) }, uSeed: { value: id === 'under' ? 1 : 2 } }), [hue, id])
-  const halo = useShaderMaterial(flatVert, coronaFrag, haloU, {
+  const haloU = useMemo(() => ({ uColor: { value: color(city.accent) }, uGlow: { value: 0 }, uBirth: { value: 1 } }), [city])
+  const halo = useShaderMaterial(flatVert, galaxyHaloFrag, haloU, {
     transparent: true,
     depthWrite: false,
     blending: THREE.AdditiveBlending,
   })
   const group = useRef()
-  const haloRef = useRef()
-  useFrame(({ clock }, dt) => {
+  useFrame(({ clock }, delta) => {
     const s = state.current
     const g = s.discs[id]
     if (!g || !group.current) return
-    const hovered = s.hover === id
+    const dt = Math.min(delta, 0.05)
+    const glow = s.glow[id]
+    uniforms.uGlow.value = glow
+    haloU.uGlow.value = glow
+    uniforms.uBirth.value = s.fx.birth
+    haloU.uBirth.value = s.fx.birth
     const warping = s.warp === id
-    uniforms.uGlow.value += ((hovered || warping ? 1 : 0) - uniforms.uGlow.value) * Math.min(1, dt * 5)
     const targetScale = warping ? 1 + s.warpT * s.warpT * 9 : 1
-    uniforms.uScale.value += (targetScale - uniforms.uScale.value) * Math.min(1, dt * 6)
-    if (!s.reduced) uniforms.uSpin.value += dt * (0.05 + uniforms.uGlow.value * 0.09) * (id === 'under' ? 1 : -1)
+    uniforms.uScale.value = s.reduced ? targetScale : ease(uniforms.uScale.value, targetScale, 6, dt)
+    if (!s.reduced) uniforms.uSpin.value += dt * (0.04 + glow * 0.1 + (warping ? s.warpT * 0.8 : 0)) * dir
     uniforms.uTime.value = clock.getElapsedTime()
-    haloU.uTime.value = clock.getElapsedTime()
     const px = (s.mouse.x - 0.5) * -10
     const py = (s.mouse.y - 0.5) * 8
     group.current.position.set(g.x + px, g.y + py, 0)
-    group.current.scale.setScalar(g.r * 1.05)
-    if (haloRef.current) {
-      const hs = (0.62 + uniforms.uGlow.value * 0.18) * uniforms.uScale.value
-      haloRef.current.scale.setScalar(hs)
-    }
+    group.current.scale.setScalar(g.r)
   })
   return (
     <group ref={group}>
-      <mesh ref={haloRef} material={halo} renderOrder={1}>
-        <planeGeometry args={[5, 5]} />
+      <mesh material={halo} renderOrder={1} scale={3}>
+        <planeGeometry args={[1, 1]} />
       </mesh>
       <points geometry={geometry} material={material} frustumCulled={false} renderOrder={2} />
     </group>
@@ -177,11 +185,15 @@ function Stars({ state }) {
     const W = size.width
     const H = size.height
     const t = clock.getElapsedTime()
-    const target = s.warp ? s.discs[s.warp] : s.hover ? s.discs[s.hover] : null
-    const wantPull = s.reduced ? 0 : s.warp ? 1 : s.hover ? 0.35 : 0
-    pull.current += (wantPull - pull.current) * Math.min(1, dt * (s.warp ? 6 : 3))
+    // stars drift toward the side you lean into, and stream into it when you commit
+    const key = s.warp ?? (s.armed === 'under' || s.armed === 'top' || s.armed === 'play' ? s.armed : null)
+    const target = key ? s.discs[key] : null
+    const lean = s.armed === 'play' ? 0.35 : Math.abs(s.leanS) * 0.35
+    const wantPull = s.reduced ? 0 : s.warp ? 1 : lean
+    pull.current = ease(pull.current, wantPull, s.warp ? 6 : 3, dt)
     const p = pull.current
     lineU.uPull.value = p
+    const vis = s.fx.stars
     const pp = pointGeo.attributes.position.array
     const ps = pointGeo.attributes.aSize.array
     const pa = pointGeo.attributes.aAlpha.array
@@ -189,13 +201,16 @@ function Stars({ state }) {
     const la = lineGeo.attributes.aAlpha.array
     for (let i = 0; i < N_STARS; i++) {
       const st = data[i]
-      let px = st.x * W + (s.mouse.x - 0.5) * -34 * st.z
-      let py = st.y * H + (s.mouse.y - 0.5) * -24 * st.z
+      const px = st.x * W + (s.mouse.x - 0.5) * -34 * st.z
+      const py = st.y * H + (s.mouse.y - 0.5) * -24 * st.z
       let tx = px
       let ty = py
       if (target && p > 0.01) {
-        const dx = target.x - px
-        const dy = target.y - py
+        // target is centre-origin, y up; star maths is in screen px, y down
+        const gx = target.x + W / 2
+        const gy = H / 2 - target.y
+        const dx = gx - px
+        const dy = gy - py
         const d = Math.hypot(dx, dy) || 1
         const speed = p * (120 + st.z * 260) * (s.warp ? 4 : 1)
         st.x += ((dx / d) * speed * dt) / W
@@ -212,19 +227,18 @@ function Stars({ state }) {
         if (st.x > 1) st.x = 0
       }
       const tw = s.reduced ? 1 : 0.7 + 0.3 * Math.sin(t * (0.8 + st.z) + st.tw)
-      // pixel space → world: x right, y up
       pp[i * 3] = px - W / 2
       pp[i * 3 + 1] = H / 2 - py
       pp[i * 3 + 2] = 0
       ps[i] = st.s
-      pa[i] = (0.35 + st.z * 0.6) * tw
+      pa[i] = (0.35 + st.z * 0.6) * tw * vis
       lp[i * 6] = px - W / 2
       lp[i * 6 + 1] = H / 2 - py
       lp[i * 6 + 2] = 0
       lp[i * 6 + 3] = tx - W / 2
       lp[i * 6 + 4] = H / 2 - ty
       lp[i * 6 + 5] = 0
-      la[i * 2] = 0.3 + st.z * 0.6
+      la[i * 2] = (0.3 + st.z * 0.6) * vis
       la[i * 2 + 1] = 0
     }
     pointGeo.attributes.position.needsUpdate = true
@@ -256,20 +270,35 @@ function Sky({ state }) {
       uTop0: { value: color(CITIES.top.sky[0]) },
       uTop1: { value: color(CITIES.top.sky[1]) },
       uTopSmog: { value: color(CITIES.top.smog) },
-      uBrass: { value: color(BASE.brass) },
+      uUnderAcc: { value: color(CITIES.under.accent) },
+      uUnderAcc2: { value: color(CITIES.under.accent2) },
+      uTopAcc: { value: color(CITIES.top.accent) },
+      uTopAcc2: { value: color(CITIES.top.accent2) },
+      uCore: { value: color(BASE.core) },
+      uInk: { value: color(BASE.ink) },
+      uTear: { value: 1.05 },
+      uFlood: { value: 1 },
+      uSpark: { value: 0 },
+      uGlowUnder: { value: 0 },
+      uGlowTop: { value: 0 },
+      uPulse: { value: 0 },
     }),
     [],
   )
   const material = useShaderMaterial(flatVert, launchSkyFrag, uniforms, { depthWrite: false })
-  useFrame(({ clock }, delta) => {
+  useFrame(({ clock }) => {
     const s = state.current
-    const dt = Math.min(delta, 0.05)
     uniforms.uTime.value = s.reduced ? 0 : clock.getElapsedTime()
     uniforms.uAspect.value.set(size.width / Math.max(size.height, 1), 1)
     uniforms.uVertical.value = s.stacked ? 1 : 0
-    const key = s.warp ?? s.hover
-    const want = key === 'under' ? (s.warp ? 1.3 : 0.74) : key === 'top' ? (s.warp ? -0.3 : 0.26) : 0.5
-    uniforms.uSeam.value += (want - uniforms.uSeam.value) * Math.min(1, dt * (s.reduced ? 60 : 3.5))
+    uniforms.uSeam.value = s.seam
+    uniforms.uTear.value = s.fx.tear
+    uniforms.uFlood.value = s.fx.flood
+    uniforms.uSpark.value = s.fx.spark
+    // each city's nebula rolls in as you lean toward it
+    uniforms.uGlowUnder.value = s.glow.under
+    uniforms.uGlowTop.value = s.glow.top
+    uniforms.uPulse.value = s.seamPulse
   })
   return (
     <mesh material={material} renderOrder={-10} frustumCulled={false}>
@@ -287,22 +316,23 @@ function Camera() {
     camera.bottom = -size.height / 2
     camera.near = 0.1
     camera.far = 1000
-    camera.position.set(0, 0, 100)
+    camera.position.set(0, 0, 400)
     camera.updateProjectionMatrix()
   }, [camera, size])
   return null
 }
 
-// `state` is a ref: { hover, warp, warpT, mouse:{x,y}, discs:{under:{x,y,r}, top:{x,y,r}}, reduced, stacked }
 export default function LaunchScene({ state }) {
   return (
     <>
       <color attach="background" args={[BASE.ink]} />
       <Camera />
+      <Director state={state} />
       <Sky state={state} />
       <Stars state={state} />
       <Galaxy id="under" state={state} />
       <Galaxy id="top" state={state} />
+      <LaunchShip state={state} />
       {fxEnabled() ? <Effects launch={state} /> : null}
     </>
   )

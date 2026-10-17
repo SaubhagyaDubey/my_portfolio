@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { CITIES, cityVars } from '../data/palette.js'
 import { Board, Callsign, SubmitNote } from '../game/Board.jsx'
 import { abandonRun, beginRun, finishRun, loadBoard, stopRefresh, useBoard } from '../game/board.js'
 import GameScene from '../game/GameScene.jsx'
+import { laneEl, laneFor, setLane } from '../game/lanes.js'
+import { SPECIALS } from '../game/specials.js'
 import { BOX, HULL_MAX, game, resetGame, reticleEl, useGame } from '../game/state.js'
 import { useMediaQuery } from '../hooks/useMediaQuery.js'
 import { navigate } from '../lib/router.js'
@@ -31,7 +33,14 @@ export default function Play() {
   const phase = useGame((s) => s.phase)
   const cam = useGame((s) => s.cam)
   const hit = useGame((s) => s.hit)
+  const flash = useGame((s) => s.flash)
   const set = useGame((s) => s.set)
+
+  // the lane starts in the city's own colours, before the first frame draws
+  useLayoutEffect(() => {
+    game.city = cityKey
+    setLane(laneFor(1, cityKey), true)
+  }, [cityKey])
 
   useEffect(() => {
     game.reduced = reduced
@@ -104,6 +113,7 @@ export default function Play() {
         return
       }
       if (e.key === 'Shift') game.input.roll = true
+      else if ((e.key === 'e' || e.key === 'E') && ph === 'playing') game.input.special = true
       else if (e.key === 'v' || e.key === 'V') toggleCam()
       else if (e.key === 'p' || e.key === 'P') {
         if (ph === 'paused') resume()
@@ -148,8 +158,12 @@ export default function Play() {
     game.input.ty = Math.max(-BOX.y, Math.min(BOX.y, ny * BOX.y * 1.3))
   }
   const onPointerDown = (e) => {
-    if (e.pointerType === 'mouse' && e.button !== 0) return
     if (useGame.getState().phase !== 'playing') return
+    if (e.pointerType === 'mouse' && e.button === 2) {
+      game.input.special = true
+      return
+    }
+    if (e.pointerType === 'mouse' && e.button !== 0) return
     aim(e)
     game.input.fire = true
     try {
@@ -167,7 +181,15 @@ export default function Play() {
   }
 
   return (
-    <div className="play" data-phase={phase} data-cam={cam} style={cityVars(cityKey)}>
+    <div
+      className="play"
+      data-phase={phase}
+      data-cam={cam}
+      style={cityVars(cityKey)}
+      ref={(el) => {
+        laneEl.current = el
+      }}
+    >
       <div
         className="play__stage"
         onPointerDown={onPointerDown}
@@ -194,10 +216,13 @@ export default function Play() {
         }}
       />
       {hit > 0 ? <div key={hit} className="play__hit" aria-hidden="true" /> : null}
+      {flash > 0 ? <div key={flash} className="play__flash" aria-hidden="true" /> : null}
 
       <Hud onPause={pause} onCam={toggleCam} coarse={coarse} />
       <Banner />
       <BossBar />
+      <Rack coarse={coarse} />
+      <Toast coarse={coarse} />
       {coarse && phase === 'playing' ? (
         <button
           className="play__roll"
@@ -227,7 +252,6 @@ function Hud({ onPause, onCam, coarse }) {
   const hull = useGame((s) => s.hull)
   const wave = useGame((s) => s.wave)
   const mult = useGame((s) => s.mult)
-  const twin = useGame((s) => s.twin)
   const cam = useGame((s) => s.cam)
   const phase = useGame((s) => s.phase)
   const live = phase === 'playing' || phase === 'paused'
@@ -243,7 +267,6 @@ function Hud({ onPause, onCam, coarse }) {
         <div className="play__score" aria-live="off">
           <b>{String(score).padStart(7, '0')}</b>
           {mult > 1 ? <span className="play__mult">×{mult}</span> : null}
-          {twin ? <span className="play__twin">twin cannons</span> : null}
         </div>
       ) : (
         <div className="play__score" />
@@ -267,6 +290,64 @@ function Hud({ onPause, onCam, coarse }) {
         ) : null}
       </div>
     </header>
+  )
+}
+
+// Every power-up the ship has, in one row under the HUD: pickup weapons waiting to fire (the first one
+// goes next), then twin cannons and the upgrades it's carrying. On touch the rack itself is the fire button.
+function Rack({ coarse }) {
+  const held = useGame((s) => s.held)
+  const twin = useGame((s) => s.twin)
+  const shield = useGame((s) => s.shield)
+  const wind = useGame((s) => s.wind)
+  const phase = useGame((s) => s.phase)
+  if (phase !== 'playing' && phase !== 'paused') return null
+  const rack = held ? held.split(' ') : []
+  if (!rack.length && !twin && !shield && !wind) return null
+  return (
+    <div className="play__rack">
+      {rack.length ? (
+        <button
+          className="play__fire"
+          tabIndex={-1}
+          aria-label={`fire ${SPECIALS[rack[0]].label}`}
+          onPointerDown={(e) => {
+            e.stopPropagation()
+            e.preventDefault()
+            game.input.special = true
+          }}
+        >
+          {coarse ? null : <kbd>e</kbd>}
+          {rack.map((k, i) => (
+            <span key={i} data-next={i === 0} style={{ '--kind': SPECIALS[k].color }}>
+              {SPECIALS[k].label}
+            </span>
+          ))}
+        </button>
+      ) : null}
+      {twin ? (
+        <span className="play__perk play__perk--timed" style={{ '--kind': 'var(--glow)' }}>
+          twin cannons
+        </span>
+      ) : null}
+      {shield ? <span className="play__perk" style={{ '--kind': SPECIALS.shield.color }}>{SPECIALS.shield.label}</span> : null}
+      {wind ? <span className="play__perk" style={{ '--kind': SPECIALS.wind.color }}>{SPECIALS.wind.label}</span> : null}
+    </div>
+  )
+}
+
+// One line when a pickup lands: what it is, what it does, how to fire it.
+function Toast({ coarse }) {
+  const toast = useGame((s) => s.toast)
+  const phase = useGame((s) => s.phase)
+  if (!toast || phase !== 'playing') return null
+  const sp = SPECIALS[toast.kind]
+  const how = sp.type === 'weapon' ? (coarse ? 'tap the rack to fire' : 'e or right-click to fire') : null
+  return (
+    <div className="play__toast" key={toast.key} style={{ '--kind': sp.color }} aria-live="polite">
+      <b>{toast.full ? 'rack full' : sp.label}</b>
+      <span>{toast.full ? `no room for the ${sp.label}. fire one first.` : how ? `${sp.hint} · ${how}` : sp.hint}</span>
+    </div>
   )
 }
 
@@ -316,6 +397,9 @@ function Title({ onStart, coarse, reduced, cityKey, wide }) {
             <li>
               <b>roll</b> button: you can&apos;t be hit mid-roll
             </li>
+            <li>
+              tap the <b>rack</b> to fire a pickup weapon
+            </li>
           </>
         ) : (
           <>
@@ -327,6 +411,9 @@ function Title({ onStart, coarse, reduced, cityKey, wide }) {
             </li>
             <li>
               <b>shift</b> to roll: you can&apos;t be hit mid-roll
+            </li>
+            <li>
+              <b>e</b> or <b>right-click</b> fires a pickup weapon
             </li>
             <li>
               <b>v</b> cockpit view · <b>p</b> pause

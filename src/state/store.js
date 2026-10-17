@@ -39,7 +39,7 @@ export const useStore = create((set, get) => ({
   docked: null, // id of the stop whose story is open
   target: null, // id the autopilot is flying to
   moved: false, // visitor has flown at least once (hides the hint)
-  splash: null, // paint splash between scenes: { phase: 'in' | 'out', color, x, y }
+  splash: null, // hex wipe between scenes: { phase: 'in' | 'out', color, x, y }
   visited: loadVisited(),
 
   setWorld: (worldKey) => set({ worldKey, near: null, docked: null, target: null }),
@@ -79,7 +79,7 @@ export const sim = {
   camZ: 240, // eases in on arrival
   leftId: null, // stop we just undocked from; suppresses immediate re-dock
   autopilot: null, // stop id
-  fps: 60, // smoothed frame rate, for tuning the paint passes
+  fps: 60, // smoothed frame rate, for tuning the post passes
 }
 
 export function resetSim(world) {

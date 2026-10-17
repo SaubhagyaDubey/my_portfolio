@@ -1,10 +1,21 @@
-/* The launch card: undercity left, topside right (stacked on phones), name between. */
+/* The launch card: undercity left, topside right (stacked on phones), name and ship between.
+   The galaxies, the seam and the ship are WebGL underneath; everything here is real text and links. */
 .launch {
   position: fixed;
   inset: 0;
   display: grid;
   grid-template-rows: auto 1fr auto;
   overflow: hidden;
+}
+
+/* leaning into a side makes the open space a door */
+.launch[data-armed='under'],
+.launch[data-armed='top'] {
+  cursor: pointer;
+}
+
+.launch[data-intro='on'] {
+  cursor: default;
 }
 
 .launch__sky {
@@ -33,18 +44,13 @@
 }
 
 .launch__corner b {
-  color: var(--brass);
+  color: var(--steel);
   font-weight: 400;
 }
 
 .launch__corner a {
   color: var(--dim);
   border-bottom: 1px dotted transparent;
-}
-
-.launch__links {
-  display: flex;
-  gap: 20px;
 }
 
 .launch__corner a:hover,
@@ -55,124 +61,81 @@
 }
 
 .launch__stage {
+  --disc: clamp(260px, min(34vw, 90vh), 560px);
   display: grid;
-  grid-template-columns: 1fr minmax(0, 520px) 1fr;
+  grid-template-columns: 1fr minmax(0, 480px) 1fr;
   grid-template-areas:
     'under mid top'
-    '. play .';
+    'under play top';
   align-items: center;
   align-content: center;
-  padding-inline: clamp(12px, 3vw, 40px);
-  gap: 12px;
+  padding-inline: clamp(12px, 2vw, 32px);
+  column-gap: 12px;
+  row-gap: 4px;
+  min-height: 0;
 }
 
+/* ---- centre: portrait, name, line ---- */
 .launch__mid {
   grid-area: mid;
+  align-self: end;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   justify-items: center;
   gap: 12px;
   text-align: center;
 }
 
-.launch__act {
-  margin: 6px 0 0;
-  color: var(--brass);
-  text-transform: uppercase;
-  letter-spacing: 0.14em;
-  font-size: 11.5px;
-}
-
-/* name, set like a title card: heavy serif between two brass rules with a small diamond */
+/* name, set like a film one-sheet: one heavy expanded line wider than the column, reaching out over both galaxies */
 .launch__name {
-  margin: 0;
-  display: grid;
-  justify-items: center;
-  gap: 10px;
-  font-family: var(--display);
-  font-weight: 900;
-  font-size: clamp(34px, 5.1vw, 62px);
-  line-height: 1;
-  letter-spacing: var(--display-track);
+  --n: min(5.6vw, 9vh, 104px);
+  margin: 6px 0 2px;
+  justify-self: unsafe center;
+  width: max-content;
+  font-family: var(--poster);
+  font-weight: 800;
+  font-stretch: 125%;
+  font-size: var(--n);
+  line-height: 0.9;
+  letter-spacing: -0.015em;
   text-transform: uppercase;
-  text-wrap: balance;
-  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.45);
+  white-space: nowrap;
+  text-shadow: 0 0.02em 0.3em rgba(0, 0, 0, 0.35);
 }
 
-.launch__name::before,
-.launch__name::after {
-  content: '';
-  width: min(340px, 70vw);
-  height: 7px;
-  background:
-    linear-gradient(45deg, transparent 42%, var(--brass) 42% 58%, transparent 58%) center / 7px 7px no-repeat,
-    linear-gradient(-45deg, transparent 42%, var(--brass) 42% 58%, transparent 58%) center / 7px 7px no-repeat,
-    linear-gradient(90deg, transparent, var(--brass) 18%, var(--brass) 44%, transparent 44% 56%, var(--brass) 56%, var(--brass) 82%, transparent) center / 100% 1px no-repeat;
-}
-
-.launch__name small {
-  font-size: 12px;
-  color: var(--dim);
-  text-transform: uppercase;
-  letter-spacing: 0.3em;
+.launch__name span {
+  display: block;
 }
 
 .launch__hello {
   margin: 0;
-  max-width: 38ch;
-  font-size: clamp(15px, 1.5vw, 18px);
+  max-width: 40ch;
+  font-size: clamp(15px, 1.35vw, 17px);
   font-variation-settings: 'opsz' 18, 'WONK' 1, 'SOFT' 30;
-  line-height: 1.7;
+  line-height: 1.65;
   color: var(--paper);
   text-wrap: pretty;
   text-shadow: 0 1px 12px var(--ink);
 }
 
-.launch__prompt {
-  color: var(--accent, var(--brass));
-  /* room for the longest prompt, so hovering never shifts the buttons under the pointer */
-  line-height: 1.5;
-  min-height: 3em;
-  max-width: 44ch;
-  transition: color 0.4s;
-}
-
-/* nothing hovered, or the game: brass, the colour that belongs to neither city */
-.launch[data-hover=''],
-.launch[data-hover='play'] {
-  --accent: var(--brass);
-  --glow: transparent;
-}
-
-.launch__prompt::before {
-  content: '';
-  display: inline-block;
-  width: 0;
-  height: 0;
-  border-left: 6px solid currentColor;
-  border-top: 4px solid transparent;
-  border-bottom: 4px solid transparent;
-  margin-right: 8px;
-  vertical-align: 1px;
-}
-
 /* ---- portrait plate ---- */
 .helmet {
   position: relative;
-  width: min(230px, 52vw);
+  width: min(210px, 52vw);
   aspect-ratio: 1;
-  --ring-a: var(--brass);
-  --ring-b: #f1e4c8;
+  --ring-a: var(--steel);
+  --ring-b: #e6edf7;
   filter: drop-shadow(0 14px 22px rgba(0, 0, 0, 0.55));
 }
 
 .helmet[data-tint='under'] {
-  --ring-a: #8a4a2b;
-  --ring-b: #c9a27a;
+  --ring-a: #4a515c;
+  --ring-b: #9aa3ae;
 }
 
 .helmet[data-tint='top'] {
-  --ring-a: #d9a84e;
-  --ring-b: #fff1d6;
+  --ring-a: #bcd4f6;
+  --ring-b: #f2f6ff;
 }
 
 .helmet__plate {
@@ -181,24 +144,15 @@
   border-radius: 50%;
   overflow: hidden;
   background:
-    radial-gradient(circle at 50% 42%, color-mix(in oklab, var(--accent, var(--brass)) 22%, #1a1612) 0 48%, transparent 49%),
+    radial-gradient(circle at 50% 42%, color-mix(in oklab, var(--accent, var(--steel)) 22%, #16181d) 0 48%, transparent 49%),
     conic-gradient(from 200deg, var(--ring-a) 0 12%, var(--ring-b) 12% 18%, var(--ring-a) 18% 46%, color-mix(in oklab, var(--ring-a) 55%, #000) 46% 74%, var(--ring-b) 74% 79%, var(--ring-a) 79%);
-  -webkit-mask-image: var(--mask-disc, radial-gradient(circle, #000 70%, transparent 71%));
-  mask-image: var(--mask-disc, radial-gradient(circle, #000 70%, transparent 71%));
-  -webkit-mask-size: 100% 100%;
-  mask-size: 100% 100%;
-  transition: background 0.5s;
+  box-shadow: 0 0 0 0 transparent;
+  transition: background 0.5s, box-shadow 0.4s;
 }
 
-/* paper grain over the ring and portrait */
-.helmet__plate::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: var(--paper-tile, none) 0 0 / 192px 192px;
-  mix-blend-mode: multiply;
-  opacity: 0.35;
-  pointer-events: none;
+.helmet[data-tint='under'] .helmet__plate,
+.helmet[data-tint='top'] .helmet__plate {
+  box-shadow: 0 0 34px color-mix(in oklab, var(--accent) 45%, transparent);
 }
 
 .helmet img {
@@ -209,6 +163,12 @@
   height: auto;
   translate: -50% 0;
   clip-path: circle(46% at 50% 44%);
+  opacity: 0;
+  transition: opacity 0.09s linear;
+}
+
+.helmet img[data-on='true'] {
+  opacity: 1;
 }
 
 .helmet__visor {
@@ -217,106 +177,243 @@
   border-radius: 50%;
   pointer-events: none;
   background:
-    linear-gradient(118deg, transparent 20%, rgba(255, 246, 228, 0.32) 20% 27%, transparent 27% 31%, rgba(255, 246, 228, 0.16) 31% 34%, transparent 34%),
+    linear-gradient(118deg, transparent 20%, rgba(240, 246, 255, 0.32) 20% 27%, transparent 27% 31%, rgba(240, 246, 255, 0.16) 31% 34%, transparent 34%),
     radial-gradient(circle at 50% 50%, transparent 60%, rgba(0, 0, 0, 0.5) 100%);
   box-shadow: inset 0 0 50px color-mix(in oklab, var(--glow, transparent) 35%, transparent);
   transition: box-shadow 0.5s;
 }
 
-/* ---- the two sides: invisible hit areas over the WebGL galaxies ---- */
-.galaxy {
+/* nothing armed, or the game: steel, the colour that belongs to neither city */
+.launch[data-armed=''],
+.launch[data-armed='play'] {
+  --accent: var(--steel);
+  --glow: transparent;
+}
+
+/* ---- the two cities ---- */
+.side {
+  /* both cities' titles share one size, a step under the name: "the work" (~7em wide) fills ~77% of its column */
+  container-type: inline-size;
+  --t: clamp(26px, 11cqi, 72px);
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 10px;
+  min-width: 0;
+  transition: opacity 0.4s;
+}
+
+.side--under {
+  grid-area: under;
+}
+
+.side--top {
+  grid-area: top;
+}
+
+/* the galaxy is drawn under this box: an inclined disc, so wider than tall; it leans out toward the edge */
+.side__disc {
+  display: block;
+  width: var(--disc);
+  aspect-ratio: 1.6;
+  pointer-events: none;
+}
+
+.side--under .side__disc {
+  translate: -6% 0;
+}
+
+.side--top .side__disc {
+  translate: 6% 0;
+}
+
+.side__go {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: 6px 14px;
   background: none;
   border: 0;
   color: inherit;
   cursor: pointer;
-  padding: 22px;
-  display: grid;
-  justify-items: center;
-  gap: 6px;
-  border-radius: 30px;
-  outline: none;
+  text-align: center;
 }
 
-.galaxy__disc {
-  display: block;
-  width: clamp(150px, 20vw, 250px);
-  aspect-ratio: 1;
-  border-radius: 50%;
-}
-
-.galaxy:focus-visible .galaxy__disc {
-  outline: 2px dotted var(--brass);
-  outline-offset: 12px;
-}
-
-.galaxy__city {
-  color: var(--dim);
+.side__city {
+  /* the trailing letter-space would pull a centred line left; pad the other side to match */
+  padding-left: 0.55em;
+  font-family: var(--poster);
+  font-stretch: 125%;
+  font-weight: 400;
+  font-size: max(11px, calc(var(--t) * 0.24));
+  line-height: 1.3;
+  letter-spacing: 0.55em;
   text-transform: uppercase;
-  letter-spacing: 0.16em;
-  font-size: 11.5px;
+  color: var(--paper);
+  /* thin strokes over a bright galaxy arm need a halo to stay readable */
+  text-shadow: 0 0 12px var(--ink), 0 1px 2px rgba(0, 0, 0, 0.7);
   transition: color 0.3s;
 }
 
-.galaxy__title {
-  font-family: var(--display);
-  font-weight: var(--display-weight);
-  font-size: clamp(20px, 2.3vw, 32px);
-  line-height: 1.1;
-  letter-spacing: var(--display-track);
+.side__title {
+  font-family: var(--poster);
+  font-stretch: 125%;
+  font-weight: 800;
+  font-size: var(--t);
+  line-height: 0.9;
+  letter-spacing: -0.015em;
   text-transform: uppercase;
-  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.5);
-  transition: transform 0.4s var(--ease-out), color 0.3s;
+  white-space: nowrap;
+  text-shadow: 0 0.02em 0.3em rgba(0, 0, 0, 0.4);
+  transition: color 0.3s;
 }
 
-.galaxy:hover .galaxy__title,
-.galaxy:focus-visible .galaxy__title {
-  transform: translateY(-3px);
+.side__blurb {
+  display: none;
+  max-width: 30ch;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--dim);
+  text-shadow: 0 1px 10px var(--ink);
+}
+
+.side__go:focus-visible {
+  outline: 2px dotted var(--accent);
+  outline-offset: 6px;
+}
+
+.launch[data-armed='under'] .side--under :is(.side__city, .side__title),
+.launch[data-armed='top'] .side--top :is(.side__city, .side__title) {
   color: var(--accent);
 }
 
-.galaxy:hover .galaxy__city,
-.galaxy:focus-visible .galaxy__city {
+/* the other city steps back while you lean away from it */
+.launch[data-armed='under'] .side--top,
+.launch[data-armed='top'] .side--under {
+  opacity: 0.6;
+}
+
+/* ---- the route, stop by stop: always there, lit when its city is armed ---- */
+.side__peek {
+  list-style: none;
+  margin: 2px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 1px;
+  max-width: 100%;
+  opacity: 0.5;
+  transition: opacity 0.2s;
+}
+
+.launch[data-armed='under'] .side--under .side__peek,
+.launch[data-armed='top'] .side--top .side__peek,
+.side__peek:focus-within {
+  opacity: 1;
+}
+
+.side__peek a {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 3px 8px;
+  max-width: 100%;
+  color: var(--paper);
+  font-family: var(--mono);
+  font-variation-settings: normal;
+  font-size: 12.5px;
+  line-height: 1.5;
+  white-space: nowrap;
+  text-shadow: 0 0 14px var(--ink), 0 1px 2px var(--ink);
+  transition: color 0.2s, background 0.2s;
+}
+
+.side__peek a:hover,
+.side__peek a:focus-visible {
+  text-decoration: none;
+  background: color-mix(in oklab, var(--accent) 14%, transparent);
+  outline: none;
+}
+
+.side__peek a:focus-visible {
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.side__year {
+  color: var(--dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.side__peek b {
+  font-family: var(--hud);
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transition: color 0.2s;
+}
+
+.launch[data-armed='under'] .side--under .side__peek b,
+.launch[data-armed='top'] .side--top .side__peek b,
+.side__peek a:hover b,
+.side__peek a:focus-visible b {
   color: var(--accent);
 }
 
-.galaxy--under {
-  grid-area: under;
-  justify-self: end;
+.side__meta {
+  color: var(--dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
 }
 
-.galaxy--top {
-  grid-area: top;
-  justify-self: start;
+/* the route strip's markers: vials below, gems above; filled once you've been there */
+.side__mark {
+  flex: none;
+  align-self: center;
+  width: 7px;
+  height: 11px;
+  border: 1px solid var(--accent);
+  border-radius: 1px 1px 3px 3px;
 }
 
-.launch[data-warp='under'] .galaxy--top,
-.launch[data-warp='top'] .galaxy--under,
-.launch[data-warp='play'] .galaxy,
-.launch[data-warp='under'] .launch__third,
-.launch[data-warp='top'] .launch__third,
-.launch[data-warp]:not([data-warp='']) .launch__mid {
-  opacity: 0;
-  transition: opacity 0.5s;
+.side--top .side__mark {
+  width: 8px;
+  height: 8px;
+  border-radius: 0;
+  rotate: 45deg;
 }
 
-/* ---- the third choice: the game, under both cities, as loud as they are ---- */
+.side__peek a[data-visited='true'] .side__mark {
+  background: var(--accent);
+  box-shadow: 0 0 8px color-mix(in oklab, var(--accent) 60%, transparent);
+}
+
+/* ---- the third choice: the ship and the game, under both cities ---- */
 .launch__third {
   grid-area: play;
+  align-self: start;
   justify-self: center;
   display: grid;
   justify-items: center;
-  gap: 12px;
-  margin-top: 10px;
+  gap: 10px;
+}
+
+/* the WebGL ship sits on this box */
+.launch__ship {
+  display: block;
+  width: 140px;
+  height: 118px;
 }
 
 .launch__or {
+  margin-top: 8px;
   color: var(--dim);
   text-transform: uppercase;
   letter-spacing: 0.16em;
   font-size: 11.5px;
 }
 
-/* a brass slab, sheared like the game's own buttons; the label is sheared back upright */
+/* a steel slab, sheared like the game's own buttons; the label is sheared back upright */
 .launch__play {
   display: block;
   padding: 17px 44px 16px;
@@ -328,12 +425,12 @@
   text-transform: uppercase;
   white-space: nowrap;
   color: var(--ink);
-  background: var(--brass);
+  background: var(--steel);
   transform: skewX(-14deg);
   box-shadow:
-    inset 0 1px 0 rgba(255, 246, 228, 0.45),
-    inset 0 -3px 0 var(--brass-deep),
-    0 0 28px color-mix(in oklab, var(--brass) 40%, transparent),
+    inset 0 1px 0 rgba(240, 246, 255, 0.45),
+    inset 0 -3px 0 var(--steel-deep),
+    0 0 28px color-mix(in oklab, var(--steel) 40%, transparent),
     0 12px 26px rgba(0, 0, 0, 0.5);
   outline: none;
   transition: background 0.25s, box-shadow 0.3s, transform 0.3s var(--ease-out);
@@ -346,7 +443,7 @@
   transform: skewX(14deg);
 }
 
-/* a play triangle, drawn the same way as the prompt's */
+/* a play triangle */
 .launch__play > span::before {
   content: '';
   border-left: 0.62em solid currentColor;
@@ -358,23 +455,36 @@
 .launch__play:focus-visible {
   color: var(--ink);
   text-decoration: none;
-  background: color-mix(in oklab, var(--brass) 78%, var(--paper));
+  background: color-mix(in oklab, var(--steel) 78%, var(--paper));
   transform: skewX(-14deg) translateY(-3px);
   box-shadow:
-    inset 0 1px 0 rgba(255, 246, 228, 0.6),
-    inset 0 -3px 0 var(--brass-deep),
-    0 0 46px color-mix(in oklab, var(--brass) 65%, transparent),
+    inset 0 1px 0 rgba(240, 246, 255, 0.6),
+    inset 0 -3px 0 var(--steel-deep),
+    0 0 46px color-mix(in oklab, var(--steel) 65%, transparent),
     0 16px 30px rgba(0, 0, 0, 0.55);
 }
 
 .launch__play:focus-visible {
-  outline: 2px dotted var(--brass);
+  outline: 2px dotted var(--steel);
   outline-offset: 7px;
+}
+
+/* committing: everything but the chosen city steps out of the way */
+.launch[data-warp='under'] .side--top,
+.launch[data-warp='top'] .side--under,
+.launch[data-warp='play'] .side,
+.launch[data-warp='under'] .launch__third,
+.launch[data-warp='top'] .launch__third,
+.launch[data-warp]:not([data-warp='']) .launch__mid,
+.launch[data-warp]:not([data-warp='']) .side__peek {
+  opacity: 0;
+  transition: opacity 0.5s;
 }
 
 .launch__foot {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   gap: 12px;
   flex-wrap: wrap;
   padding: 0 20px 16px;
@@ -382,63 +492,187 @@
   color: var(--dim);
 }
 
-/* phones: topside above, me in the middle, undercity below, matching the horizontal seam */
-@media (max-width: 720px) {
+.launch__keys em {
+  font-style: normal;
+  color: var(--faint);
+}
+
+.launch__keys kbd {
+  display: inline-grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  margin: 0 4px 0 6px;
+  padding: 0 4px;
+  border: 1px solid color-mix(in oklab, var(--paper) 40%, transparent);
+  color: var(--paper);
+  font: inherit;
+  font-size: 11px;
+}
+
+.launch__keys kbd:first-child {
+  margin-left: 0;
+}
+
+/* ---- narrower desktops: the routes give way to a one-line blurb ---- */
+@media (max-width: 1079px) {
+  .side__peek {
+    display: none;
+  }
+
+  .side__blurb {
+    display: block;
+  }
+}
+
+/* ---- short laptop screens: a smaller plate and name keep the play button on screen ---- */
+@media (min-width: 721px) and (max-height: 860px) {
   .launch__stage {
-    grid-template-columns: 1fr;
-    grid-template-areas: 'top' 'mid' 'under' 'play';
-    gap: 0;
-    align-content: center;
-  }
-
-  .launch__third {
-    gap: 8px;
-    margin-top: 14px;
-  }
-
-  .launch__play {
-    padding: 14px 32px 13px;
-    font-size: 17px;
-  }
-
-  .galaxy--under,
-  .galaxy--top {
-    justify-self: center;
-    padding: 4px;
-    grid-template-columns: auto auto;
-    align-items: center;
-    column-gap: 12px;
-  }
-
-  .galaxy__disc {
-    width: clamp(70px, 20vw, 96px);
-    grid-row: span 2;
-  }
-
-  .galaxy__city,
-  .galaxy__title {
-    justify-self: start;
-  }
-
-  .helmet {
-    width: min(140px, 36vw);
+    --disc: clamp(240px, min(30vw, 62vh), 480px);
   }
 
   .launch__mid {
     gap: 8px;
   }
 
+  .helmet {
+    width: clamp(104px, 18vh, 190px);
+  }
+
   .launch__name {
-    font-size: clamp(26px, 8.4vw, 38px);
+    --n: min(5.4vw, 8.4vh, 96px);
+  }
+
+  .side {
+    --t: clamp(24px, 11cqi, min(64px, 8vh));
   }
 
   .launch__hello {
-    font-size: 14.5px;
-    line-height: 1.6;
+    line-height: 1.5;
   }
 
-  .launch__prompt {
-    min-height: 1.5em;
+  .launch__ship {
+    height: 80px;
+  }
+
+  .launch__third {
+    gap: 6px;
+  }
+
+  .launch__play {
+    padding: 14px 38px 13px;
+  }
+
+  .side {
+    gap: 6px;
+  }
+
+  .side__peek a {
+    padding-block: 2px;
+    line-height: 1.4;
+  }
+}
+
+/* ---- phones: topside above, me in the middle, undercity below, matching the horizontal seam ---- */
+@media (max-width: 720px) {
+  .launch__stage {
+    --disc: clamp(120px, 34vw, 160px);
+    grid-template-columns: 1fr;
+    grid-template-areas: 'top' 'mid' 'under' 'play';
+    row-gap: 6px;
+    align-content: center;
+  }
+
+  .launch__mid {
+    align-self: center;
+    gap: 8px;
+  }
+
+  .side {
+    grid-template-columns: auto auto;
+    align-items: center;
+    justify-content: center;
+    column-gap: 4px;
+  }
+
+  .side__disc {
+    grid-row: 1;
+  }
+
+  .side--under .side__disc,
+  .side--top .side__disc {
+    translate: none;
+  }
+
+  .side--top .side__disc {
+    grid-column: 2;
+  }
+
+  .side--top .side__go {
+    grid-row: 1;
+    grid-column: 1;
+  }
+
+  .side__go {
+    justify-items: start;
+    text-align: left;
+    padding: 4px;
+  }
+
+  .side--top .side__go {
+    justify-items: end;
+    text-align: right;
+  }
+
+  .side__blurb {
+    display: block;
+    font-size: 13px;
+    max-width: 24ch;
+  }
+
+  .side__peek {
+    display: none;
+  }
+
+  .helmet {
+    width: min(120px, 32vw);
+  }
+
+  /* two lines on a phone, each as wide as the screen allows */
+  .launch__name {
+    --n: min(calc((100vw - 32px) / 8.6), 64px);
+    width: auto;
+    justify-self: center;
+    white-space: normal;
+    text-wrap: balance;
+  }
+
+  .side {
+    --t: clamp(22px, calc((100cqi - var(--disc) - 24px) / 7.4), 40px);
+  }
+
+  .side__city {
+    letter-spacing: 0.32em;
+    padding-left: 0;
+  }
+
+  .launch__hello {
+    font-size: 14px;
+    line-height: 1.55;
+  }
+
+  .launch__third {
+    gap: 6px;
+  }
+
+  .launch__ship {
+    width: 100px;
+    height: 72px;
+  }
+
+  .launch__play {
+    padding: 14px 32px 13px;
+    font-size: 17px;
   }
 
   .launch__foot span:last-child,
@@ -447,57 +681,23 @@
   }
 }
 
-/* short laptop screens: a smaller plate and name keep the third choice on screen */
-@media (min-width: 721px) and (max-height: 860px) {
-  .launch__mid {
-    gap: 8px;
-  }
-
-  .helmet {
-    width: clamp(120px, 22vh, 230px);
-  }
-
-  .launch__name {
-    font-size: clamp(30px, min(5.1vw, 7vh), 62px);
-  }
-
-  .launch__hello {
-    line-height: 1.55;
-  }
-
-  .launch__third {
-    margin-top: 2px;
-    gap: 8px;
-  }
-
-  .launch__play {
-    padding: 14px 38px 13px;
-  }
-}
-
 /* short phones */
 @media (max-width: 720px) and (max-height: 760px) {
-  .galaxy__disc {
-    width: 64px;
+  .side__blurb {
+    display: none;
   }
 
   .helmet {
-    width: min(88px, 26vw);
-  }
-
-  .launch__act {
-    font-size: 10px;
-    letter-spacing: 0.1em;
+    width: min(84px, 24vw);
   }
 
   .launch__hello {
     font-size: 13.5px;
-    line-height: 1.5;
+    line-height: 1.45;
   }
 
-  .launch__third {
-    margin-top: 8px;
-    gap: 6px;
+  .launch__ship {
+    height: 56px;
   }
 
   .launch__play {
@@ -507,11 +707,15 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .galaxy__title,
+  .side,
+  .side__peek,
+  .side__peek a,
+  .side__title,
+  .side__city,
   .launch__play,
+  .helmet img,
   .helmet__plate,
-  .helmet__visor,
-  .launch__prompt {
+  .helmet__visor {
     transition: none;
   }
 }

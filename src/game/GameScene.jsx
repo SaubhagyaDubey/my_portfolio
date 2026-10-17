@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { Bloom, EffectComposer } from '@react-three/postprocessing'
 import * as THREE from 'three'
@@ -10,7 +10,9 @@ import Bullets from './Bullets.jsx'
 import { Boss, Creatures, Pickups } from './Creatures.jsx'
 import Explosions from './Explosions.jsx'
 import GameLoop from './GameLoop.jsx'
+import { pal } from './lanes.js'
 import PlayerShip from './PlayerShip.jsx'
+import Specials from './Specials.jsx'
 import { AIM_Z, game, reticleEl } from './state.js'
 import Tunnel from './Tunnel.jsx'
 
@@ -29,17 +31,20 @@ function Reticle() {
   return null
 }
 
-// The galaxies' grade and lens, with bloom. No brush or ink here: a fast game needs crisp edges.
-function GameEffects({ cityKey, reduced }) {
+// The galaxies' grade and lens, with bloom. No brush, ink, paper or grain here: a fast game needs clean,
+// crisp frames. The grade's split tone follows the lane.
+function GameEffects({ reduced }) {
   const tier = getTier()
-  const grade = useMemo(
-    () => new GradeEffect({ a: CITIES.under.grade, b: CITIES.top.grade, mix: cityKey === 'top' ? 1 : 0, halftone: 0, paper: 0.03, vignette: 0.5 }),
-    [cityKey],
-  )
-  const lens = useMemo(() => new LensEffect({ ca: tier === 0 ? 0 : 0.004, grain: 0.025 }), [tier])
+  const grade = useMemo(() => new GradeEffect({ a: CITIES.under.grade, b: CITIES.top.grade, mix: 0, halftone: 0, paper: 0, vignette: 0.5 }), [])
+  const lens = useMemo(() => new LensEffect({ ca: tier === 0 ? 0 : 0.004, grain: 0 }), [tier])
   useEffect(() => {
     lens.frozen = reduced
   }, [lens, reduced])
+  useFrame(() => {
+    grade.uniforms.get('uShadowA').value.copy(pal.shadow)
+    grade.uniforms.get('uMidA').value.copy(pal.mid)
+    grade.uniforms.get('uHighA').value.copy(pal.high)
+  })
   useEffect(
     () => () => {
       grade.dispose()
@@ -56,23 +61,43 @@ function GameEffects({ cityKey, reduced }) {
   )
 }
 
+// Background and lights in the lane's colours.
+function LaneLight() {
+  const bg = useRef()
+  const ambient = useRef()
+  const sun = useRef()
+  const fill = useRef()
+  useFrame(() => {
+    bg.current?.copy(pal.sky0)
+    ambient.current?.color.copy(pal.ambient)
+    sun.current?.color.copy(pal.sun)
+    fill.current?.color.copy(pal.accent)
+  })
+  return (
+    <>
+      <color ref={bg} attach="background" args={[pal.sky0]} />
+      <ambientLight ref={ambient} intensity={0.55} />
+      <directionalLight ref={sun} position={[-0.5, 1, 0.8]} intensity={2.6} />
+      <directionalLight ref={fill} position={[0.6, -0.3, -1]} intensity={0.9} />
+    </>
+  )
+}
+
 export default function GameScene({ city, cityKey, reduced }) {
   return (
     <>
-      <color attach="background" args={[city.sky[0]]} />
-      <ambientLight intensity={0.55} color={city.ambient} />
-      <directionalLight position={[-0.5, 1, 0.8]} intensity={2.6} color={city.sunColor} />
-      <directionalLight position={[0.6, -0.3, -1]} intensity={0.9} color={city.accent} />
-      <Tunnel city={city} cityKey={cityKey} />
-      <Creatures city={city} />
-      <Boss city={city} />
-      <Pickups city={city} />
-      <Bullets city={city} />
+      <LaneLight />
+      <Tunnel cityKey={cityKey} />
+      <Creatures />
+      <Boss />
+      <Pickups />
+      <Bullets />
+      <Specials />
       <Explosions />
       <PlayerShip city={city} />
-      <GameLoop city={city} />
+      <GameLoop />
       <Reticle />
-      {fxEnabled() ? <GameEffects cityKey={cityKey} reduced={reduced} /> : null}
+      {fxEnabled() ? <GameEffects reduced={reduced} /> : null}
     </>
   )
 }

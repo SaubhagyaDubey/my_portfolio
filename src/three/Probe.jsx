@@ -18,7 +18,7 @@ export default function Probe({ stop, world }) {
   })
   // rusted, patched, still blinking
   const gm = toonRamp()
-  const metal = { color: '#8f8a7e', gradientMap: gm }
+  const metal = { color: '#8a919b', gradientMap: gm }
   const foil = { color: world.rivet, gradientMap: gm }
   const panel = { color: '#173a34', gradientMap: gm }
   return (

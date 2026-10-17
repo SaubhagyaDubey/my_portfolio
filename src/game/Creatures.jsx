@@ -3,6 +3,8 @@ import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { toonRamp } from '../three/toonRamp.js'
 import { BOSS, SPECIES } from './creatures.js'
+import { pal } from './lanes.js'
+import { SPECIALS } from './specials.js'
 import { BOSS_SEGMENTS, MAX_PICKUPS, game, segmentPos } from './state.js'
 
 const dummy = new THREE.Object3D()
@@ -14,17 +16,19 @@ function glowColor(hex, k = 2.2) {
 }
 
 // One species: an instanced toon body and an instanced glowing core sharing its transforms.
-function Species({ kind, city }) {
+// 'enemy' cores glow in the lane's second light, so they change with the lane.
+function Species({ kind }) {
   const sp = SPECIES[kind]
   const body = useRef()
   const core = useRef()
+  const coreMat = useRef()
   const geo = useMemo(() => sp.build(), [sp])
   const coreGeo = useMemo(() => {
     const g = new THREE.SphereGeometry(sp.coreR, 12, 10)
     g.translate(0, sp.coreY, 0)
     return g
   }, [sp])
-  const coreColor = useMemo(() => glowColor(sp.core === 'enemy' ? city.accent2 : sp.core), [sp, city])
+  const coreColor = useMemo(() => glowColor(sp.core === 'enemy' ? '#ffffff' : sp.core), [sp])
   useEffect(
     () => () => {
       geo.dispose()
@@ -43,6 +47,7 @@ function Species({ kind, city }) {
     const b = body.current
     const c0 = core.current
     if (!b || !c0) return
+    if (sp.core === 'enemy' && coreMat.current) coreMat.current.color.copy(pal.accent2).multiplyScalar(2.2)
     let n = 0
     for (const c of game.creatures) {
       if (!c.on || c.kind !== kind) continue
@@ -84,27 +89,26 @@ function Species({ kind, city }) {
         <meshToonMaterial color={sp.color} gradientMap={gm} />
       </instancedMesh>
       <instancedMesh ref={core} args={[coreGeo, undefined, sp.max]} frustumCulled={false}>
-        <meshBasicMaterial color={coreColor} toneMapped={false} />
+        <meshBasicMaterial ref={coreMat} color={coreColor} toneMapped={false} />
       </instancedMesh>
     </>
   )
 }
 
-export function Creatures({ city }) {
-  return Object.keys(SPECIES).map((k) => <Species key={k} kind={k} city={city} />)
+export function Creatures() {
+  return Object.keys(SPECIES).map((k) => <Species key={k} kind={k} />)
 }
 
 // The leviathan: a horned head with one glowing eye (the only place it can be hurt), and a plated body
 // that follows the head's path a beat behind.
-export function Boss({ city }) {
+export function Boss() {
   const head = useRef()
   const headMat = useRef()
+  const eyeMat = useRef()
   const segs = useRef()
   const segCores = useRef()
+  const segMat = useRef()
   const geo = useMemo(() => ({ head: BOSS.build(), seg: BOSS.segment(), core: new THREE.SphereGeometry(0.75, 10, 8).translate(0, 0, 1.5) }), [])
-  const eyeColor = useMemo(() => glowColor(city.accent2, 2.6), [city])
-  const segGlow = useMemo(() => glowColor(city.accent2, 1.4), [city])
-  const flashColor = useMemo(() => new THREE.Color(city.accent2), [city])
   useEffect(
     () => () => {
       for (const g of Object.values(geo)) g.dispose()
@@ -121,9 +125,11 @@ export function Boss({ city }) {
       head.current.rotation.set(Math.sin(b.t * 1.3) * 0.12 + shake, Math.sin(b.t * 0.45) * 0.3, Math.cos(b.t * 0.45) * 0.15)
     }
     if (headMat.current) {
-      headMat.current.emissive.copy(flashColor)
+      headMat.current.emissive.copy(pal.accent2)
       headMat.current.emissiveIntensity = 0.08 + b.flash * 1.6
     }
+    if (eyeMat.current) eyeMat.current.color.copy(pal.accent2).multiplyScalar(2.6)
+    if (segMat.current) segMat.current.color.copy(pal.accent2).multiplyScalar(1.4)
     const s = segs.current
     const sc = segCores.current
     if (!s || !sc) return
@@ -148,39 +154,63 @@ export function Boss({ city }) {
     <>
       <group ref={head} visible={false} scale={BOSS.scale}>
         <mesh geometry={geo.head}>
-          <meshToonMaterial ref={headMat} color={BOSS.color} gradientMap={gm} emissive={city.accent2} emissiveIntensity={0.08} />
+          <meshToonMaterial ref={headMat} color={BOSS.color} gradientMap={gm} emissiveIntensity={0.08} />
         </mesh>
         <mesh position={[0, 0.2, 3.6]}>
           <sphereGeometry args={[1.05, 16, 12]} />
-          <meshBasicMaterial color={eyeColor} toneMapped={false} />
+          <meshBasicMaterial ref={eyeMat} toneMapped={false} />
         </mesh>
       </group>
       <instancedMesh ref={segs} args={[geo.seg, undefined, BOSS_SEGMENTS]} frustumCulled={false}>
         <meshToonMaterial color={BOSS.color} gradientMap={gm} />
       </instancedMesh>
       <instancedMesh ref={segCores} args={[geo.core, undefined, BOSS_SEGMENTS]} frustumCulled={false}>
-        <meshBasicMaterial color={segGlow} toneMapped={false} />
+        <meshBasicMaterial ref={segMat} toneMapped={false} />
       </instancedMesh>
     </>
   )
 }
 
-// Repair (green cross-ish gem) and twin cannons (the city's glow). Spins so it reads as a pickup.
-export function Pickups({ city }) {
+// Repair and twin cannons are gems in one ring; pickup weapons are a faceted core in a gyroscope of two rings;
+// upgrades a rounder core in one. Each spins so it reads as a pickup, and a wave's supply drop is bigger.
+const PICKUP_COLORS = { repair: '#5cff8a', ...Object.fromEntries(Object.entries(SPECIALS).map(([k, s]) => [k, s.color])) }
+
+export function Pickups() {
   const refs = useRef([])
-  const colors = useMemo(() => ({ repair: glowColor('#5cff8a', 2), twin: glowColor(city.glow, 2) }), [city])
+  const geo = useMemo(
+    () => ({
+      gem: new THREE.OctahedronGeometry(0.8, 0),
+      weapon: new THREE.IcosahedronGeometry(0.85, 0),
+      upgrade: new THREE.DodecahedronGeometry(0.8, 0),
+      ring: new THREE.TorusGeometry(1.25, 0.06, 6, 24),
+    }),
+    [],
+  )
+  const colors = useMemo(() => Object.fromEntries(Object.entries(PICKUP_COLORS).map(([k, hex]) => [k, glowColor(hex, 2)])), [])
+  const twin = useMemo(() => new THREE.Color(), [])
+  useEffect(
+    () => () => {
+      for (const g of Object.values(geo)) g.dispose()
+    },
+    [geo],
+  )
   useFrame(() => {
+    twin.copy(pal.glow).multiplyScalar(2)
     for (let i = 0; i < MAX_PICKUPS; i++) {
       const g = refs.current[i]
       const k = game.pickups[i]
       if (!g) continue
       g.visible = k.on
       if (!k.on) continue
+      const type = SPECIALS[k.kind]?.type ?? 'gem'
+      const [body, ring, ring2] = g.children
       g.position.set(k.x, k.y, k.z)
       g.rotation.set(k.t * 1.5, k.t * 2.2, 0)
-      const m = g.children[0].material
-      m.color.copy(colors[k.kind])
-      g.children[1].material.color.copy(colors[k.kind])
+      g.scale.setScalar(k.big ? 1.5 : 1)
+      body.geometry = geo[type]
+      ring2.visible = type === 'weapon'
+      const c = k.kind === 'twin' ? twin : colors[k.kind]
+      for (const m of [body, ring, ring2]) m.material.color.copy(c)
     }
   })
   return Array.from({ length: MAX_PICKUPS }, (_, i) => (
@@ -191,12 +221,13 @@ export function Pickups({ city }) {
         refs.current[i] = el
       }}
     >
-      <mesh>
-        <octahedronGeometry args={[0.8, 0]} />
+      <mesh geometry={geo.gem}>
         <meshBasicMaterial toneMapped={false} />
       </mesh>
-      <mesh>
-        <torusGeometry args={[1.25, 0.06, 6, 24]} />
+      <mesh geometry={geo.ring}>
+        <meshBasicMaterial toneMapped={false} />
+      </mesh>
+      <mesh geometry={geo.ring} rotation={[0, Math.PI / 2, 0]}>
         <meshBasicMaterial toneMapped={false} />
       </mesh>
     </group>

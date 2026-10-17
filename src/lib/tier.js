@@ -1,4 +1,5 @@
-// How much painting this device can afford. 2 = everything, 1 = lighter brush, 0 = grade only.
+// How much post-processing this device can afford. 2 = ink + MSAA, dpr 1.5; 1 = lighter ink, dpr 1.25;
+// 0 = grade + bloom only, dpr 1.
 // ?fx=0 turns post-processing off entirely; ?fx=1 or ?fx=2 forces a tier.
 
 let cached = null

@@ -1,0 +1,172 @@
+/* Poster type, shared by the galaxies' stop titles and the home page's ride. Set like a film one-sheet: a small,
+   widely tracked kicker over a heavy expanded title. No plate: the scale is the decoration. The title is solid
+   white with two misregistered copies behind it, cross-hatched in the city's colours (--shade-a, --shade-b), and
+   every few seconds a flash of --accent spreads out from its middle. Each page positions and sizes it. See DESIGN.md §6. */
+.poster__kicker {
+  margin: 0 0 0 0.06em;
+  font-family: var(--poster);
+  font-weight: 400;
+  font-stretch: 125%;
+  font-size: clamp(14px, 2vw, 30px);
+  line-height: 1.3;
+  letter-spacing: 0.55em;
+  text-transform: uppercase;
+  text-wrap: balance;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45), 0 2px 14px rgba(0, 0, 0, 0.4);
+  animation: poster-track 0.9s var(--ease-out) both;
+}
+
+.poster__title {
+  margin: 0;
+  font-family: var(--poster);
+  font-weight: 800;
+  font-stretch: 125%;
+  font-size: 120px;
+  line-height: 0.86;
+  letter-spacing: -0.015em;
+  text-transform: uppercase;
+  text-wrap: balance;
+  overflow-wrap: normal;
+  position: relative;
+  isolation: isolate;
+  animation: poster-rise 0.7s 0.06s var(--ease-out) both;
+}
+
+/* The shadows: two copies of the title (from data-text, with an empty alt so screen readers read it once)
+   set behind it and knocked off register, warm down-left and cool up-right. Each is only cross-hatching in
+   its colour inside a faint contour, so the sliver that shows past the white reads as an inked shadow. The hatch boils on twos
+   (8 fps) like the scene's light FX, and every few seconds the copies slip, a two-frame glitch. */
+.poster__title::before,
+.poster__title::after {
+  content: attr(data-text);
+  content: attr(data-text) / '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  -webkit-text-fill-color: transparent;
+  -webkit-text-stroke: 1.5px color-mix(in oklab, var(--hatch) 70%, transparent);
+  background:
+    repeating-linear-gradient(45deg, var(--hatch) 0 1.5px, transparent 1.5px 4.5px),
+    repeating-linear-gradient(-45deg, var(--hatch) 0 1.5px, transparent 1.5px 4.5px);
+  -webkit-background-clip: text;
+  background-clip: text;
+  translate: var(--dx) var(--dy);
+  -webkit-mask-image: var(--fade);
+  mask-image: var(--fade);
+  animation:
+    poster-boil 0.375s steps(1, end) infinite,
+    poster-slip 4.8s 1s steps(1, end) infinite;
+}
+
+/* the letters: white, traced in ink. The highlight is the city's light breaking from the middle of each line
+   and spreading out past both ends, a sharp front with a soft tail, fading as it goes */
+.poster__ink {
+  -webkit-text-fill-color: transparent;
+  -webkit-text-stroke: max(1.5px, 0.012em) var(--ink);
+  background:
+    linear-gradient(90deg, transparent, var(--shine) 5%, transparent 24% 76%, var(--shine) 95%, transparent) center / 0% 100%
+      no-repeat,
+    var(--paper);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  /* a filter, not text-shadow: a text-shadow would paint over the background-clipped white */
+  filter: drop-shadow(0 0.02em 0.03em rgba(0, 0, 0, 0.4)) drop-shadow(0 0.05em 0.16em rgba(0, 0, 0, 0.28));
+  animation: poster-glint 4.8s 1.4s var(--ease-out) infinite;
+}
+
+/* at least 5px across, or a small title's shadow is thinner than one hatch line.
+   Each copy fades along its own offset, once per line (the mask repeats every line-height, .86em, and in
+   each line the caps run from about .06em to .76em): the warm one is full under the letters and thins out
+   up their left sides, the cool one is full along their tops and thins out down their right sides. */
+.poster__title::before {
+  --hatch: var(--shade-a);
+  --dx: min(-0.06em, -5px);
+  --dy: max(0.035em, 3px);
+  --fade: repeating-linear-gradient(to bottom, rgba(0, 0, 0, 0.08) 0 0.1em, #000 0.74em 0.86em);
+}
+
+.poster__title::after {
+  --hatch: var(--shade-b);
+  --dx: max(0.06em, 5px);
+  --dy: min(-0.03em, -3px);
+  --fade: repeating-linear-gradient(to bottom, #000 0 0.08em, rgba(0, 0, 0, 0.08) 0.72em 0.86em);
+}
+
+@keyframes poster-track {
+  from {
+    opacity: 0;
+    transform: translateX(-0.6em);
+  }
+}
+
+@keyframes poster-boil {
+  33% {
+    background-position: 1px 1px, -1px 1px;
+  }
+  66% {
+    background-position: -1px 0, 1px -1px;
+  }
+}
+
+/* the highlight's colour, registered so it can fade */
+@property --shine {
+  syntax: '<color>';
+  inherits: false;
+  initial-value: transparent;
+}
+
+/* opens from nothing at the centre to past both ends in the first 40% of the loop: full colour at first,
+   fading out on the way, then rests */
+@keyframes poster-glint {
+  0% {
+    background-size: 0% 100%;
+    --shine: var(--accent);
+  }
+  12% {
+    --shine: var(--accent);
+  }
+  40%,
+  100% {
+    background-size: 170% 100%;
+    --shine: transparent;
+  }
+}
+
+/* rests most of the loop, then jumps wide, snaps back past centre and settles: about 0.2 s */
+@keyframes poster-slip {
+  88% {
+    translate: calc(var(--dx) * 2.2) var(--dy);
+  }
+  90% {
+    translate: calc(var(--dx) * 0.4) calc(var(--dy) * -1);
+  }
+  92% {
+    translate: var(--dx) var(--dy);
+  }
+}
+
+@keyframes poster-rise {
+  from {
+    opacity: 0;
+    transform: translateY(0.18em);
+    clip-path: inset(0 0 100% 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    clip-path: inset(-0.5em -0.5em -0.5em -0.5em);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .poster__kicker,
+  .poster__title,
+  .poster__title::before,
+  .poster__title::after,
+  .poster__ink {
+    animation: none;
+  }
+}

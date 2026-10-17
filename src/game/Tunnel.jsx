@@ -4,14 +4,16 @@ import * as THREE from 'three'
 import { getTier } from '../lib/tier.js'
 import { mulberry32 } from '../lib/seed.js'
 import { backdropFrag, flatVert, launchLineFrag, launchLineVert, launchStarFrag, launchStarVert, nebulaFrag } from '../three/shaders.js'
-import { color, useShaderMaterial } from '../three/useShaderMaterial.js'
+import { useShaderMaterial } from '../three/useShaderMaterial.js'
+import { pal } from './lanes.js'
 import { game } from './state.js'
 
 const NEAR = 20
 const FAR = -560
 
-// Speed streaks rushing past, a far star sheet, two painted nebulae and the city's sky behind it all.
-export default function Tunnel({ city, cityKey }) {
+// Speed streaks rushing past, a far star sheet, two painted nebulae and the lane's sky behind it all.
+// The sky and nebulae copy the lane's live colours every frame; the city only picks smog bands or haze.
+export default function Tunnel({ cityKey }) {
   const { gl } = useThree()
   const N = getTier() === 0 ? 320 : 640
   const streaks = useMemo(() => {
@@ -58,10 +60,10 @@ export default function Tunnel({ city, cityKey }) {
     () => ({
       uTime: { value: 0 },
       uOffset: { value: new THREE.Vector2() },
-      uTint: { value: color(city.starTint) },
-      uSky0: { value: color(city.sky[0]) },
-      uSky1: { value: color(city.sky[1]) },
-      uSmog: { value: color(city.smog) },
+      uTint: { value: pal.star.clone() },
+      uSky0: { value: pal.sky0.clone() },
+      uSky1: { value: pal.sky1.clone() },
+      uSmog: { value: pal.smog.clone() },
       uMode: { value: cityKey === 'top' ? 1 : 0 },
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -70,8 +72,8 @@ export default function Tunnel({ city, cityKey }) {
   const sky = useShaderMaterial(flatVert, backdropFrag, skyU, { depthWrite: false })
   const nebU = useMemo(
     () => [
-      { uTime: { value: 0 }, uSeed: { value: 3 }, uA: { value: color(city.smog) }, uB: { value: color(city.accent) }, uDensity: { value: 0.3 }, uCore: { value: 0 } },
-      { uTime: { value: 4 }, uSeed: { value: 7 }, uA: { value: color(city.sky[1]) }, uB: { value: color(city.accent2) }, uDensity: { value: 0.22 }, uCore: { value: 0 } },
+      { uTime: { value: 0 }, uSeed: { value: 3 }, uA: { value: pal.smog.clone() }, uB: { value: pal.accent.clone() }, uDensity: { value: 0.3 }, uCore: { value: 0 } },
+      { uTime: { value: 4 }, uSeed: { value: 7 }, uA: { value: pal.sky1.clone() }, uB: { value: pal.accent2.clone() }, uDensity: { value: 0.22 }, uCore: { value: 0 } },
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
@@ -84,6 +86,14 @@ export default function Tunnel({ city, cityKey }) {
     const dt = Math.min(delta, 1 / 15)
     const t = clock.elapsedTime
     skyU.uTime.value = t
+    skyU.uTint.value.copy(pal.star)
+    skyU.uSky0.value.copy(pal.sky0)
+    skyU.uSky1.value.copy(pal.sky1)
+    skyU.uSmog.value.copy(pal.smog)
+    nebU[0].uA.value.copy(pal.smog)
+    nebU[0].uB.value.copy(pal.accent)
+    nebU[1].uA.value.copy(pal.sky1)
+    nebU[1].uB.value.copy(pal.accent2)
     skyU.uOffset.value.set(camera.position.x * 0.00008 + t * 0.0012, camera.position.y * 0.00008)
     nebU[0].uTime.value += dt
     nebU[1].uTime.value += dt

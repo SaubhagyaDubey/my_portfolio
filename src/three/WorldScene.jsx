@@ -1,4 +1,6 @@
-import { Suspense } from 'react'
+import { Suspense, useLayoutEffect, useRef } from 'react'
+import { useFrame } from '@react-three/fiber'
+import { air, setAir, stepAir } from './air.js'
 import Comet from './Comet.jsx'
 import Effects from './Effects.jsx'
 import Gate from './Gate.jsx'
@@ -15,6 +17,7 @@ import Station from './Station.jsx'
 import TwinSuns from './TwinSuns.jsx'
 import { WORLDS } from '../data/worlds.js'
 import { fxEnabled } from '../lib/tier.js'
+import { useStore } from '../state/store.js'
 
 function Stop({ stop, world, reduced }) {
   const light = world.sun
@@ -43,16 +46,36 @@ function Stop({ stop, world, reduced }) {
   }
 }
 
+// The background and ambient light, in the live air: the galaxy's own, or the docked planet's.
+function Atmosphere({ world }) {
+  const bg = useRef()
+  const ambient = useRef()
+  useLayoutEffect(() => setAir(world, true), [world])
+  useFrame((_, delta) => {
+    const { docked } = useStore.getState()
+    const stop = docked ? world.stops.find((s) => s.id === docked) : null
+    setAir(stop?.air ?? world)
+    stepAir(Math.min(delta, 0.05))
+    bg.current?.copy(air.sky0)
+    ambient.current?.color.copy(air.ambient)
+  })
+  return (
+    <>
+      <color ref={bg} attach="background" args={[world.sky[0]]} />
+      <ambientLight ref={ambient} intensity={0.35} color={world.ambient} />
+    </>
+  )
+}
+
 // Everything inside the Canvas for one galaxy.
-export default function WorldScene({ world, reduced }) {
+export default function WorldScene({ world, reduced, arrival = null }) {
   const sun = world.sun
   const fx = fxEnabled()
   return (
     <>
-      <color attach="background" args={[world.sky[0]]} />
-      <ambientLight intensity={0.35} color={world.ambient} />
+      <Atmosphere world={world} />
       <directionalLight position={[sun[0] * 200, sun[1] * 200, sun[2] * 200]} intensity={2.4} color={world.sunColor} />
-      <Starfield world={world} reduced={reduced} />
+      <Starfield world={world} reduced={reduced} air={air} />
       <RouteLine stops={world.stops} tint={world.accent} />
       <Suspense fallback={null}>
         {world.stops.map((stop) => (
@@ -63,8 +86,8 @@ export default function WorldScene({ world, reduced }) {
         <Marker key={`m-${stop.id}`} stop={stop} tint={stop.kind === 'gate' ? WORLDS[stop.to].accent : world.accent} />
       ))}
       <Ship world={world} />
-      <Simulation world={world} reduced={reduced} />
-      {fx ? <Effects city={world.key} reduced={reduced} /> : null}
+      <Simulation world={world} reduced={reduced} arrival={arrival} />
+      {fx ? <Effects city={world.key} air={air} /> : null}
     </>
   )
 }

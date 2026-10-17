@@ -1,5 +1,5 @@
 /* A galaxy: the WebGL city underneath, painted plates on top.
-   Topside plates are brass with art-deco corner marks; undercity plates are rusted, riveted, stencilled. */
+   Topside plates are steel with art-deco corner marks; undercity plates are gunmetal, riveted, stencilled. */
 .explore {
   position: fixed;
   inset: 0;
@@ -29,10 +29,7 @@
   gap: 12px;
   padding: 6px 18px 5px;
   background: var(--plate);
-  -webkit-mask-image: var(--mask-plaque, none);
-  mask-image: var(--mask-plaque, none);
-  -webkit-mask-size: 100% 100%;
-  mask-size: 100% 100%;
+  clip-path: polygon(10px 0, calc(100% - 10px) 0, 100% 50%, calc(100% - 10px) 100%, 10px 100%, 0 50%);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), inset 0 -1px 0 rgba(0, 0, 0, 0.6);
   color: var(--dim);
   pointer-events: none;
@@ -149,7 +146,7 @@
   color: var(--paper);
   opacity: calc(0.7 + var(--close, 0) * 0.3);
   will-change: transform;
-  transition: opacity 0.3s;
+  transition: opacity 0.3s, filter 0.25s;
 }
 
 .flag__label {
@@ -158,16 +155,13 @@
   gap: 2px;
   padding: 7px 14px 6px;
   background: linear-gradient(180deg, color-mix(in oklab, var(--accent) 16%, var(--plate-a)), var(--plate-b));
-  -webkit-mask-image: var(--mask-flag, none);
-  mask-image: var(--mask-flag, none);
-  -webkit-mask-size: 100% 100%;
-  mask-size: 100% 100%;
+  clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), inset 0 -2px 0 rgba(0, 0, 0, 0.5), inset 0 -3px 0 color-mix(in oklab, var(--accent) 50%, transparent);
   text-align: center;
   max-width: 270px;
   font-family: var(--mono);
   font-variation-settings: normal;
-  transition: box-shadow 0.25s, filter 0.25s;
+  transition: box-shadow 0.25s;
 }
 
 .flag__label b {
@@ -209,12 +203,13 @@
   height: 6px;
   translate: -50% 0;
   border-radius: 50%;
-  background: radial-gradient(circle at 35% 35%, #fff4dc, var(--rivet) 60%, #1a120c);
+  background: radial-gradient(circle at 35% 35%, #f4f8ff, var(--rivet) 60%, #101216);
 }
 
-.flag:hover .flag__label,
-.flag:focus-visible .flag__label,
-.flag[data-active='true'] .flag__label {
+/* on the flag, not the label: the label's clip-path would cut its own shadow off */
+.flag:hover,
+.flag:focus-visible,
+.flag[data-active='true'] {
   filter: drop-shadow(0 0 10px color-mix(in oklab, var(--accent) 55%, transparent));
 }
 
@@ -229,7 +224,7 @@
 }
 
 .flag:focus-visible .flag__label {
-  outline: 2px dotted var(--brass);
+  outline: 2px dotted var(--steel);
   outline-offset: 3px;
 }
 
@@ -286,6 +281,35 @@
   rotate: var(--arrow, 0deg);
 }
 
+/* ---- poster title: the stop's name set huge over the scene, like a film one-sheet ----
+   A small, widely tracked kicker over one heavy expanded word. No plate: the scale is the decoration. The title
+   is solid white with two misregistered copies behind it, cross-hatched in the city's colours. It sits in the space left of the story plate; StoryPanel sizes the title to fill it. The type itself is in src/styles/poster.css. */
+.poster {
+  position: absolute;
+  top: 84px;
+  bottom: 140px;
+  left: 4vw;
+  right: calc(20px + min(440px, 42vw) + 3vw);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  pointer-events: none;
+  color: var(--paper);
+}
+
+/* minmax(0, …): an auto track would grow to the longest word, and the fit could never see it overflow */
+.poster__set {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.2em;
+}
+
+/* the docked stop's flag gives way to the poster */
+.flag[data-docked='true'] {
+  opacity: 0;
+  pointer-events: none;
+}
+
 /* ---- story panel: a painted plate with a torn edge ---- */
 .story {
   position: absolute;
@@ -300,49 +324,35 @@
   background:
     linear-gradient(90deg, color-mix(in oklab, var(--accent) 70%, transparent) 0 3px, transparent 3px),
     linear-gradient(175deg, color-mix(in oklab, var(--plate-a) 88%, var(--ink)), color-mix(in oklab, var(--plate-b) 94%, var(--ink)));
-  -webkit-mask-image: var(--mask-panel, none);
-  mask-image: var(--mask-panel, none);
-  -webkit-mask-size: 100% 100%;
-  mask-size: 100% 100%;
+  clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px);
   padding: 26px 28px 22px 30px;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07);
   animation: story-in 0.32s var(--ease-out) both;
-}
-
-/* paper grain multiplied over the plate */
-.story::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: var(--paper-tile, none) 0 0 / 192px 192px;
-  mix-blend-mode: multiply;
-  opacity: 0.22;
-  pointer-events: none;
 }
 
 .story > * {
   position: relative;
 }
 
-/* topside: brass art-deco corner marks */
+/* topside: steel art-deco corner marks */
 .explore[data-city='top'] .story::after {
   content: '';
   position: absolute;
   inset: 12px;
   pointer-events: none;
   background:
-    linear-gradient(var(--brass), var(--brass)) left top / 22px 1px,
-    linear-gradient(var(--brass), var(--brass)) left top / 1px 22px,
-    linear-gradient(var(--brass), var(--brass)) right top / 22px 1px,
-    linear-gradient(var(--brass), var(--brass)) right top / 1px 22px,
-    linear-gradient(var(--brass), var(--brass)) left bottom / 22px 1px,
-    linear-gradient(var(--brass), var(--brass)) left bottom / 1px 22px,
-    linear-gradient(var(--brass), var(--brass)) right bottom / 22px 1px,
-    linear-gradient(var(--brass), var(--brass)) right bottom / 1px 22px,
-    linear-gradient(var(--brass), var(--brass)) left 5px top 5px / 10px 1px,
-    linear-gradient(var(--brass), var(--brass)) left 5px top 5px / 1px 10px,
-    linear-gradient(var(--brass), var(--brass)) right 5px bottom 5px / 10px 1px,
-    linear-gradient(var(--brass), var(--brass)) right 5px bottom 5px / 1px 10px;
+    linear-gradient(var(--steel), var(--steel)) left top / 22px 1px,
+    linear-gradient(var(--steel), var(--steel)) left top / 1px 22px,
+    linear-gradient(var(--steel), var(--steel)) right top / 22px 1px,
+    linear-gradient(var(--steel), var(--steel)) right top / 1px 22px,
+    linear-gradient(var(--steel), var(--steel)) left bottom / 22px 1px,
+    linear-gradient(var(--steel), var(--steel)) left bottom / 1px 22px,
+    linear-gradient(var(--steel), var(--steel)) right bottom / 22px 1px,
+    linear-gradient(var(--steel), var(--steel)) right bottom / 1px 22px,
+    linear-gradient(var(--steel), var(--steel)) left 5px top 5px / 10px 1px,
+    linear-gradient(var(--steel), var(--steel)) left 5px top 5px / 1px 10px,
+    linear-gradient(var(--steel), var(--steel)) right 5px bottom 5px / 10px 1px,
+    linear-gradient(var(--steel), var(--steel)) right 5px bottom 5px / 1px 10px;
   background-repeat: no-repeat;
   opacity: 0.75;
 }
@@ -354,18 +364,18 @@
   inset: 10px;
   pointer-events: none;
   background:
-    radial-gradient(circle at 35% 35%, #e8c9a8, var(--rivet) 55%, #120c08 80%, transparent 85%) left top / 8px 8px,
-    radial-gradient(circle at 35% 35%, #e8c9a8, var(--rivet) 55%, #120c08 80%, transparent 85%) right top / 8px 8px,
-    radial-gradient(circle at 35% 35%, #e8c9a8, var(--rivet) 55%, #120c08 80%, transparent 85%) left bottom / 8px 8px,
-    radial-gradient(circle at 35% 35%, #e8c9a8, var(--rivet) 55%, #120c08 80%, transparent 85%) right bottom / 8px 8px;
+    radial-gradient(circle at 35% 35%, #e2e8f2, var(--rivet) 55%, #0c0e12 80%, transparent 85%) left top / 8px 8px,
+    radial-gradient(circle at 35% 35%, #e2e8f2, var(--rivet) 55%, #0c0e12 80%, transparent 85%) right top / 8px 8px,
+    radial-gradient(circle at 35% 35%, #e2e8f2, var(--rivet) 55%, #0c0e12 80%, transparent 85%) left bottom / 8px 8px,
+    radial-gradient(circle at 35% 35%, #e2e8f2, var(--rivet) 55%, #0c0e12 80%, transparent 85%) right bottom / 8px 8px;
   background-repeat: no-repeat;
 }
 
 .story header {
   display: grid;
-  grid-template-columns: 60px 1fr auto;
+  grid-template-columns: 1fr auto;
   gap: 14px;
-  align-items: start;
+  align-items: center;
   margin-bottom: 14px;
   padding-bottom: 14px;
   border-bottom: 1px solid color-mix(in oklab, var(--rivet) 45%, transparent);
@@ -373,49 +383,22 @@
 
 .explore[data-city='top'] .story header {
   border-bottom: 0;
-  background: linear-gradient(90deg, transparent, var(--brass) 20%, var(--brass) 80%, transparent) bottom / 100% 1px no-repeat;
-}
-
-.story__face {
-  width: 60px;
-  height: 60px;
-  border-radius: 50%;
-  overflow: hidden;
-  position: relative;
-  background: radial-gradient(circle at 50% 40%, color-mix(in oklab, var(--accent) 22%, #1a1612), #0d0b09 70%);
-  box-shadow: 0 0 0 2px var(--rivet), 0 0 0 3px rgba(0, 0, 0, 0.6), 0 6px 14px -6px #000;
-}
-
-.story__face img {
-  position: absolute;
-  left: 50%;
-  bottom: -6%;
-  width: 96%;
-  translate: -50% 0;
-}
-
-.story h2 {
-  margin: 2px 0 2px;
-  font-family: var(--display);
-  font-size: 23px;
-  line-height: 1.12;
-  font-weight: var(--display-weight);
-  letter-spacing: var(--display-track);
-  text-transform: uppercase;
-  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.45);
+  background: linear-gradient(90deg, transparent, var(--steel) 20%, var(--steel) 80%, transparent) bottom / 100% 1px no-repeat;
 }
 
 .story__where {
   color: var(--accent);
-  font-size: 11.5px;
-  letter-spacing: 0.06em;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  font-variant-numeric: tabular-nums;
 }
 
 .story__fact {
   color: var(--dim);
   font-size: 11.5px;
   letter-spacing: 0.03em;
-  margin-top: 4px;
+  margin-top: 6px;
 }
 
 .explore[data-city='under'] .story__fact {
@@ -477,7 +460,7 @@
 }
 
 .btn:focus-visible {
-  outline: 2px dotted var(--brass);
+  outline: 2px dotted var(--steel);
   outline-offset: 3px;
 }
 
@@ -497,15 +480,15 @@
   font-size: 14px;
 }
 
-/* the panel is painted on from the left, a ragged edge sweeping across */
+/* the panel slides in from the right. transform, not translate: translate centres it */
 @keyframes story-in {
   from {
     opacity: 0;
-    clip-path: polygon(0 0, 6% 0, 3% 12%, 7% 26%, 2% 41%, 6% 55%, 1% 70%, 5% 84%, 2% 100%, 0 100%);
+    transform: translateX(18px);
   }
   to {
     opacity: 1;
-    clip-path: polygon(0 0, 106% 0, 103% 12%, 107% 26%, 102% 41%, 106% 55%, 101% 70%, 105% 84%, 102% 100%, 0 100%);
+    transform: none;
   }
 }
 
@@ -520,10 +503,7 @@
   gap: 16px;
   padding: 9px 18px 7px;
   background: var(--plate);
-  -webkit-mask-image: var(--mask-plaque, none);
-  mask-image: var(--mask-plaque, none);
-  -webkit-mask-size: 100% 100%;
-  mask-size: 100% 100%;
+  clip-path: polygon(10px 0, calc(100% - 10px) 0, 100% 50%, calc(100% - 10px) 100%, 10px 100%, 0 50%);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), inset 0 -1px 0 rgba(0, 0, 0, 0.6);
   max-width: calc(100% - 24px);
 }
@@ -622,7 +602,7 @@
 }
 
 .route button:focus-visible {
-  outline: 1px dotted var(--brass);
+  outline: 1px dotted var(--steel);
   outline-offset: 2px;
 }
 
@@ -655,17 +635,19 @@
   }
 
   .story header {
-    grid-template-columns: 46px 1fr auto;
     gap: 10px;
   }
 
-  .story__face {
-    width: 46px;
-    height: 46px;
+  .poster {
+    top: 62px;
+    left: 16px;
+    right: 16px;
+    bottom: calc(48vh + 84px);
+    justify-content: flex-start;
   }
 
-  .story h2 {
-    font-size: 22px;
+  .poster__kicker {
+    letter-spacing: 0.4em;
   }
 
   .story p {

@@ -1,0 +1,892 @@
+/* The home page: the ride, seen from the cockpit (src/scenes/Journey.jsx). The flight is WebGL underneath;
+   everything here is real text, links and buttons over it. One thing in the middle of the canopy at a time:
+   the take-off ring, a stop's card, or the fork. */
+.journey {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* while riding, a click anywhere takes off or moves on */
+.journey[data-phase='ready'],
+.journey[data-phase='fly'],
+.journey[data-phase='dwell'] {
+  cursor: pointer;
+}
+
+.journey__sky {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+/* the canopy: dark at the rim, open in the middle, with the game's cockpit brackets in the stop's light */
+.journey__canopy {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background:
+    linear-gradient(to top, color-mix(in oklab, var(--ink) 72%, transparent), transparent 24%),
+    radial-gradient(125% 95% at 50% 46%, transparent 58%, color-mix(in oklab, var(--ink) 55%, transparent) 82%, var(--ink) 100%);
+}
+
+.journey__canopy::before,
+.journey__canopy::after {
+  content: '';
+  position: absolute;
+  top: 16%;
+  bottom: 18%;
+  width: 64px;
+  border: 2px solid color-mix(in oklab, var(--accent) 50%, transparent);
+  transition: border-color 0.6s;
+}
+
+.journey__canopy::before {
+  left: 4.5%;
+  border-right: 0;
+}
+
+.journey__canopy::after {
+  right: 4.5%;
+  border-left: 0;
+}
+
+.journey[data-fork='on'] .journey__canopy::before,
+.journey[data-fork='on'] .journey__canopy::after {
+  opacity: 0;
+  transition: opacity 0.6s;
+}
+
+/* ---- top bar ---- */
+.journey__top {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 3;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: calc(16px + env(safe-area-inset-top, 0px)) 20px 0;
+  color: var(--dim);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.journey__top b {
+  color: var(--steel);
+  font-weight: 400;
+}
+
+.journey__top nav {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+}
+
+.journey__link {
+  padding: 4px 0;
+  background: none;
+  border: 0;
+  border-bottom: 1px dotted transparent;
+  color: var(--dim);
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.journey__link:hover,
+.journey__link:focus-visible {
+  color: var(--paper);
+  border-bottom-color: var(--paper);
+  text-decoration: none;
+}
+
+/* ---- before take-off ---- */
+.journey-ready {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 12px;
+  padding: 0 16px;
+  text-align: center;
+  pointer-events: none;
+  animation: card-up 0.8s 0.2s var(--ease-out) both;
+}
+
+.journey-ready p {
+  margin: 0;
+}
+
+.journey-ready__kicker {
+  padding-left: 0.55em;
+  font-size: clamp(11px, 1.1vw, 15px);
+  color: var(--dim);
+}
+
+.journey-ignite {
+  position: relative;
+  width: 104px;
+  height: 104px;
+  margin: 18px 0 8px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in oklab, var(--steel) 12%, transparent) 0 56%, transparent 58%);
+  color: var(--paper);
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+/* a slow breath around the ring: the only thing moving before you do */
+.journey-ignite::before {
+  content: '';
+  position: absolute;
+  inset: -10px;
+  border-radius: 50%;
+  border: 1px solid color-mix(in oklab, var(--steel) 35%, transparent);
+  animation: ignite-breathe 2.8s ease-in-out infinite;
+}
+
+.journey-ignite svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  rotate: -90deg;
+}
+
+.journey-ignite__track {
+  fill: none;
+  stroke: color-mix(in oklab, var(--steel) 30%, transparent);
+  stroke-width: 1.5;
+}
+
+.journey-ignite__fill {
+  fill: none;
+  stroke: var(--steel);
+  stroke-width: 3.5;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  filter: drop-shadow(0 0 6px color-mix(in oklab, var(--steel) 80%, transparent));
+}
+
+/* two chevrons, pointing the way */
+.journey-ignite__chev,
+.journey-ignite__chev::after {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border-left: 2px solid var(--paper);
+  border-top: 2px solid var(--paper);
+}
+
+.journey-ignite__chev {
+  left: 50%;
+  top: 50%;
+  translate: -50% -38%;
+  rotate: 45deg;
+}
+
+.journey-ignite__chev::after {
+  content: '';
+  left: 6px;
+  top: 6px;
+  opacity: 0.5;
+}
+
+.journey-ignite:focus-visible {
+  outline: 2px dotted var(--steel);
+  outline-offset: 16px;
+}
+
+.journey-ready__key {
+  padding-left: 0.3em;
+  font-family: var(--hud);
+  font-weight: 600;
+  font-size: clamp(18px, 1.9vw, 24px);
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--paper);
+  text-shadow: 0 1px 14px var(--ink);
+}
+
+.journey-ready__line {
+  font-size: 17px;
+  font-style: italic;
+  color: var(--paper);
+  text-shadow: 0 1px 14px var(--ink);
+}
+
+.journey-ready .journey-ready__time {
+  margin-top: 6px;
+  color: var(--dim);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+/* ---- a stop's card, in the middle of the canopy ---- */
+.journey__cards {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  padding: 72px 16px 104px;
+  pointer-events: none;
+}
+
+.journey-card {
+  grid-area: 1 / 1;
+  width: min(1100px, 100%);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: center;
+  gap: 14px;
+  text-align: center;
+  color: var(--paper);
+  transition:
+    opacity 0.45s var(--ease-out),
+    transform 0.45s var(--ease-out),
+    filter 0.45s;
+}
+
+/* leaving a stop, you fly through its card */
+.journey-card[data-on='false'] {
+  opacity: 0;
+  transform: scale(1.14);
+  filter: blur(6px);
+  transition-duration: 0.35s;
+  transition-timing-function: cubic-bezier(0.5, 0, 0.9, 0.4);
+}
+
+.journey-card p {
+  margin: 0;
+}
+
+/* the trailing letter-space would pull a centred line left; pad the other side to match */
+.journey-card__kicker {
+  padding-left: 0.55em;
+  font-size: clamp(12px, 1.35vw, 20px);
+}
+
+.journey-card__title {
+  width: 100%;
+}
+
+.journey-card .journey-card__line {
+  margin-top: 6px;
+  max-width: 44ch;
+  font-size: clamp(16px, 1.45vw, 20px);
+  line-height: 1.55;
+  text-wrap: pretty;
+  text-shadow: 0 1px 14px var(--ink), 0 0 3px var(--ink);
+  animation: card-up 0.6s 0.35s var(--ease-out) both;
+}
+
+.journey-card__fact {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 10px;
+  max-width: 100%;
+  color: var(--dim);
+  text-shadow: 0 0 12px var(--ink), 0 1px 2px var(--ink);
+  animation: card-up 0.6s 0.5s var(--ease-out) both;
+}
+
+/* the city's gem, as on the flags */
+.journey-card__fact::before {
+  content: '';
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border: 1px solid var(--accent);
+  rotate: 45deg;
+  translate: 0 -1px;
+}
+
+/* counts down to leaving */
+.journey-card__timer {
+  display: block;
+  width: 120px;
+  height: 2px;
+  margin-top: 6px;
+  background: color-mix(in oklab, var(--paper) 14%, transparent);
+  animation: card-up 0.6s 0.6s var(--ease-out) both;
+}
+
+.journey-card__timer i {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transform-origin: left;
+}
+
+@keyframes card-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+@keyframes ignite-breathe {
+  0%,
+  100% {
+    opacity: 0.25;
+    scale: 0.94;
+  }
+  50% {
+    opacity: 0.8;
+    scale: 1.04;
+  }
+}
+
+/* ---- the fork: me, the work, the game ---- */
+.journey-fork {
+  --disc: clamp(220px, min(30vw, 42vh), 460px);
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: 1fr minmax(0, 360px) 1fr;
+  grid-template-rows: auto 1fr auto auto;
+  grid-template-areas:
+    'head head head'
+    'under . top'
+    'play play play'
+    'foot foot foot';
+  align-items: center;
+  padding: calc(68px + env(safe-area-inset-top, 0px)) clamp(16px, 3vw, 48px) calc(18px + env(safe-area-inset-bottom, 0px));
+  visibility: hidden;
+  opacity: 0;
+  transition:
+    opacity 0.5s var(--ease-out),
+    visibility 0s 0.5s;
+}
+
+.journey-fork[data-on='true'] {
+  visibility: visible;
+  opacity: 1;
+  transition:
+    opacity 0.9s var(--ease-out),
+    visibility 0s;
+}
+
+.journey-fork__head {
+  grid-area: head;
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  text-align: center;
+}
+
+.journey-fork__head p {
+  margin: 0;
+}
+
+.journey-fork__kicker {
+  padding-left: 0.55em;
+  font-size: clamp(12px, 1.3vw, 18px);
+}
+
+.journey-fork__line {
+  font-size: 16px;
+  color: var(--paper);
+  text-shadow: 0 1px 12px var(--ink);
+}
+
+.journey-choice {
+  --t: clamp(30px, 5vw, 80px);
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 8px;
+  padding: 6px 12px;
+  min-width: 0;
+  text-align: center;
+  color: var(--paper);
+}
+
+.journey-choice:hover,
+.journey-choice:focus-visible {
+  text-decoration: none;
+}
+
+.journey-choice:focus-visible {
+  outline: 2px dotted var(--accent);
+  outline-offset: 6px;
+}
+
+.journey-choice--under {
+  grid-area: under;
+}
+
+.journey-choice--top {
+  grid-area: top;
+}
+
+/* the galaxy is drawn under this box: an inclined disc, so wider than tall */
+.journey-choice__disc {
+  display: block;
+  width: var(--disc);
+  max-width: 100%;
+  aspect-ratio: 1.6;
+}
+
+.journey-choice__city {
+  padding-left: 0.55em;
+  font-family: var(--poster);
+  font-stretch: 125%;
+  font-weight: 400;
+  font-size: max(11px, calc(var(--t) * 0.22));
+  line-height: 1.3;
+  letter-spacing: 0.55em;
+  text-transform: uppercase;
+  text-shadow: 0 0 12px var(--ink), 0 1px 2px rgba(0, 0, 0, 0.7);
+  transition: color 0.3s;
+}
+
+.journey-choice__title {
+  font-family: var(--poster);
+  font-stretch: 125%;
+  font-weight: 800;
+  font-size: var(--t);
+  line-height: 0.9;
+  letter-spacing: -0.015em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  text-shadow: 0 0.02em 0.3em rgba(0, 0, 0, 0.45);
+  transition: color 0.3s;
+}
+
+.journey-choice__blurb {
+  max-width: 30ch;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--dim);
+  text-shadow: 0 1px 10px var(--ink);
+}
+
+.journey-choice:hover :is(.journey-choice__city, .journey-choice__title),
+.journey-choice:focus-visible :is(.journey-choice__city, .journey-choice__title) {
+  color: var(--accent);
+}
+
+.journey-fork__play {
+  grid-area: play;
+  justify-self: center;
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  margin: 4px 0 10px;
+}
+
+.journey-fork__or {
+  font-size: 15px;
+  font-style: italic;
+  color: var(--dim);
+  text-shadow: 0 1px 10px var(--ink);
+}
+
+/* a steel slab, sheared like the game's own buttons; the label is sheared back upright */
+.journey-slab {
+  display: block;
+  padding: 17px 44px 16px;
+  font-family: var(--display);
+  font-weight: 900;
+  font-size: clamp(17px, 1.7vw, 23px);
+  line-height: 1;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--ink);
+  background: var(--steel);
+  transform: skewX(-14deg);
+  box-shadow:
+    inset 0 1px 0 rgba(240, 246, 255, 0.45),
+    inset 0 -3px 0 var(--steel-deep),
+    0 0 28px color-mix(in oklab, var(--steel) 40%, transparent),
+    0 12px 26px rgba(0, 0, 0, 0.5);
+  outline: none;
+  transition:
+    background 0.25s,
+    box-shadow 0.3s,
+    transform 0.3s var(--ease-out);
+}
+
+.journey-slab > span {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  transform: skewX(14deg);
+}
+
+.journey-slab > span::before {
+  content: '';
+  border-left: 0.62em solid currentColor;
+  border-top: 0.38em solid transparent;
+  border-bottom: 0.38em solid transparent;
+}
+
+.journey-slab:hover,
+.journey-slab:focus-visible {
+  color: var(--ink);
+  text-decoration: none;
+  background: color-mix(in oklab, var(--steel) 78%, var(--paper));
+  transform: skewX(-14deg) translateY(-3px);
+  box-shadow:
+    inset 0 1px 0 rgba(240, 246, 255, 0.6),
+    inset 0 -3px 0 var(--steel-deep),
+    0 0 46px color-mix(in oklab, var(--steel) 65%, transparent),
+    0 16px 30px rgba(0, 0, 0, 0.55);
+}
+
+.journey-slab:focus-visible {
+  outline: 2px dotted var(--steel);
+  outline-offset: 7px;
+}
+
+.journey-fork__foot {
+  grid-area: foot;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  color: var(--dim);
+}
+
+.journey-keys kbd {
+  display: inline-grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  margin: 0 4px 0 10px;
+  padding: 0 4px;
+  border: 1px solid color-mix(in oklab, var(--paper) 40%, transparent);
+  color: var(--paper);
+  font: inherit;
+  font-size: 11px;
+}
+
+.journey-keys kbd:first-child {
+  margin-left: 0;
+}
+
+/* heading out: everything but the way you picked steps aside */
+.journey-fork[data-leaving]:not([data-leaving='']) > :not([data-picked='true']) {
+  opacity: 0;
+  transition: opacity 0.4s;
+}
+
+/* ---- the bottom of the canopy: the route and how to move along it ---- */
+.journey-hud {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 3;
+  display: grid;
+  grid-template-columns: 1fr minmax(0, 440px) 1fr;
+  align-items: center;
+  gap: 20px;
+  padding: 0 20px calc(18px + env(safe-area-inset-bottom, 0px));
+  color: var(--dim);
+  animation: card-up 0.6s var(--ease-out) both;
+}
+
+.journey-hud__count {
+  font-family: var(--hud);
+  font-weight: 500;
+  font-size: 13px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.journey-hud__count b {
+  color: var(--paper);
+  font-weight: 600;
+}
+
+.journey-hud__count em {
+  margin-left: 12px;
+  font-style: normal;
+  color: var(--accent);
+}
+
+.journey-hud__route {
+  position: relative;
+  height: 16px;
+}
+
+.journey-hud__rail {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+  background: color-mix(in oklab, var(--paper) 22%, transparent);
+}
+
+.journey-hud__rail i {
+  position: absolute;
+  inset: 0;
+  background: var(--accent);
+  transform-origin: left;
+  transform: scaleX(0);
+  box-shadow: 0 0 6px var(--accent);
+}
+
+.journey-hud__stop {
+  position: absolute;
+  top: 50%;
+  width: 9px;
+  height: 9px;
+  translate: -50% -50%;
+  rotate: 45deg;
+  border: 1px solid color-mix(in oklab, var(--paper) 45%, transparent);
+  background: var(--ink);
+  transition:
+    background 0.3s,
+    border-color 0.3s,
+    box-shadow 0.3s;
+}
+
+.journey-hud__stop[data-state='done'] {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.journey-hud__stop[data-state='next'] {
+  border-color: var(--accent);
+  box-shadow: 0 0 10px color-mix(in oklab, var(--accent) 70%, transparent);
+}
+
+.journey-hud__stop--fork {
+  border-radius: 50%;
+  rotate: none;
+}
+
+.journey-hud__keys {
+  justify-self: end;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.journey-hud__next {
+  padding: 7px 14px 6px;
+  border: 1px solid color-mix(in oklab, var(--paper) 30%, transparent);
+  background: color-mix(in oklab, var(--ink) 55%, transparent);
+  color: var(--paper);
+  font-family: var(--hud);
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition:
+    border-color 0.2s,
+    color 0.2s;
+}
+
+.journey-hud__next:hover,
+.journey-hud__next:focus-visible {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.journey__blink {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  background: var(--ink);
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ---- short laptop screens ---- */
+@media (min-width: 721px) and (max-height: 800px) {
+  .journey-fork {
+    --disc: clamp(200px, min(26vw, 34vh), 380px);
+    padding-top: calc(56px + env(safe-area-inset-top, 0px));
+  }
+
+  .journey-choice {
+    --t: clamp(28px, 4.4vw, 64px);
+  }
+
+  .journey-choice__blurb {
+    font-size: 14px;
+  }
+}
+
+/* ---- phones ---- */
+@media (max-width: 720px) {
+  .journey__top b {
+    display: none;
+  }
+
+  .journey__top nav {
+    gap: 14px;
+  }
+
+  .journey__canopy::before,
+  .journey__canopy::after {
+    width: 28px;
+    top: 20%;
+    bottom: 22%;
+  }
+
+  .journey__canopy::before {
+    left: 10px;
+  }
+
+  .journey__canopy::after {
+    right: 10px;
+  }
+
+  .journey-ready__line {
+    font-size: 16px;
+  }
+
+  .journey__cards {
+    padding: 60px 20px 116px;
+  }
+
+  .journey-card {
+    gap: 12px;
+  }
+
+  .journey-card__kicker {
+    letter-spacing: 0.4em;
+    padding-left: 0.4em;
+  }
+
+  .journey-card__line {
+    font-size: 15.5px;
+  }
+
+  .journey-card__fact {
+    font-size: 11.5px;
+  }
+
+  .journey-fork {
+    --disc: clamp(104px, 30vw, 150px);
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto 1fr 1fr auto auto;
+    grid-template-areas: 'head' 'under' 'top' 'play' 'foot';
+    padding-top: calc(60px + env(safe-area-inset-top, 0px));
+    row-gap: 4px;
+  }
+
+  .journey-fork__line {
+    font-size: 14.5px;
+  }
+
+  .journey-choice {
+    --t: clamp(26px, 9vw, 40px);
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-rows: auto auto auto;
+    justify-items: start;
+    align-items: center;
+    column-gap: 14px;
+    row-gap: 4px;
+    text-align: left;
+  }
+
+  .journey-choice__disc {
+    grid-row: 1 / span 3;
+  }
+
+  .journey-choice__city {
+    letter-spacing: 0.32em;
+    padding-left: 0;
+  }
+
+  .journey-choice__blurb {
+    font-size: 13.5px;
+    max-width: 26ch;
+  }
+
+  .journey-slab {
+    padding: 14px 32px 13px;
+    font-size: 16px;
+  }
+
+  .journey-fork__or {
+    font-size: 14px;
+  }
+
+  .journey-hud {
+    grid-template-columns: 1fr auto;
+    grid-template-areas: 'route route' 'count keys';
+    row-gap: 12px;
+    padding-inline: 16px;
+  }
+
+  .journey-hud__route {
+    grid-area: route;
+  }
+
+  .journey-hud__count {
+    grid-area: count;
+  }
+
+  .journey-hud__keys {
+    grid-area: keys;
+  }
+
+  .journey-hud__hint {
+    display: none;
+  }
+}
+
+/* short phones */
+@media (max-width: 720px) and (max-height: 700px) {
+  .journey-choice__blurb {
+    display: none;
+  }
+
+  .journey-fork__or {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .journey-ready,
+  .journey-card__line,
+  .journey-card__fact,
+  .journey-card__timer,
+  .journey-hud,
+  .journey-ignite::before {
+    animation: none;
+  }
+
+  .journey-card,
+  .journey-fork,
+  .journey-slab,
+  .journey-choice__city,
+  .journey-choice__title,
+  .journey-hud__stop {
+    transition: none;
+  }
+
+  /* nothing moves on by itself, so there is nothing to count down */
+  .journey-card__timer {
+    display: none;
+  }
+}
